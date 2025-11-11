@@ -3,8 +3,6 @@ import LuxuryProductSearch from './LuxuryProductSearch';
 import AdminPanel from './AdminPanel';
 import { LogIn } from 'lucide-react';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-
 function App() {
   const [isAdmin, setIsAdmin] = useState(false);
 

@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Upload, Package, Eye, X } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import { Search, Package, Eye, X } from 'lucide-react';
 
 // API 地址：从环境变量读取，本地开发默认 http://localhost:5000
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -13,7 +12,6 @@ const LuxuryProductSearch = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [isUploading, setIsUploading] = useState(false);
 
   // load from localStorage on mount
   React.useEffect(() => {
@@ -42,11 +40,6 @@ const LuxuryProductSearch = () => {
 
     return () => { mounted = false; };
   }, []);
-
-    const handleFileUpload = async (event) => {
-    // This handler is now obsolete; file upload is handled by AdminPanel
-    // Keeping it as empty for backward compatibility
-  };
 
   const filteredProducts = useMemo(() => {
     if (!searchTerm.trim()) return products;
