@@ -7,8 +7,6 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const LuxuryProductSearch = () => {
   const [products, setProducts] = useState([]);
-  const [adminKey, setAdminKey] = useState('');
-  const [showAdminInput, setShowAdminInput] = useState(false);
   // pagination & sorting
   const [sortBy, setSortBy] = useState(''); // 'price_asc', 'price_desc', 'brand_asc', 'brand_desc'
   const [pageSize, setPageSize] = useState(12);
@@ -45,109 +43,9 @@ const LuxuryProductSearch = () => {
     return () => { mounted = false; };
   }, []);
 
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const raw = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-
-      // Helper: normalize header strings (remove accents, spaces -> underscore, lowercase)
-      const normalizeHeader = (h) => {
-        if (!h && h !== 0) return '';
-        const s = String(h);
-        return s
-          .normalize('NFD') // split accents
-          .replace(/\p{Diacritic}/gu, '') // remove diacritics
-          .replace(/\s+/g, '_')
-          .replace(/[-/\\]+/g, '_')
-          .replace(/[^a-zA-Z0-9_]/g, '')
-          .toLowerCase();
-      };
-
-      // Map common incoming headers to our internal field names
-      const headerMap = {
-        produit: 'produit',
-        designation: 'designation',
-        motif: 'motif',
-        marque: 'marque',
-        couleur: 'couleur',
-        taille: 'taille',
-        reference: 'reference',
-        referencee: 'reference',
-        'référence': 'reference',
-        dimension: 'dimension',
-        prix_vente: 'prix_vente',
-        prixvente: 'prix_vente',
-        tarif: 'prix_vente',
-        prix_achat: 'prix_achat',
-        rayon: 'Rayon',
-        famille: 'Famille',
-        sousfamille: 'sousfamille',
-        matiere: 'matiere',
-        lien_externe: 'lien_externe',
-        lienexterne: 'lien_externe',
-        lien: 'lien_externe',
-        link: 'Link',
-        pays_production: 'production_pays',
-        paysdeproduction: 'production_pays',
-        pays_de_production: 'production_pays',
-        poids: 'poids'
-      };
-
-      const normalizeRow = (row) => {
-        const out = {};
-        Object.keys(row).forEach((k) => {
-          const nk = normalizeHeader(k);
-          const mapped = headerMap[nk] || nk;
-          out[mapped] = row[k];
-        });
-
-        // Attempt to parse prix_vente into a number when possible
-        if (out.prix_vente !== undefined && out.prix_vente !== null && out.prix_vente !== '') {
-          const str = String(out.prix_vente).trim();
-          // remove currency symbols and keep dot for decimals
-          const cleaned = str.replace(/[^0-9,.-]/g, '').replace(/,/g, '.');
-          const num = parseFloat(cleaned);
-          if (!Number.isNaN(num)) out.prix_vente = num;
-        }
-
-        return out;
-      };
-
-      const jsonData = raw.map(normalizeRow);
-
-      setProducts(jsonData);
-      // persist to localStorage
-      try { localStorage.setItem('luxury_products', JSON.stringify(jsonData)); } catch (e) { console.warn('localStorage save failed', e); }
-
-      // try to send to server (include admin key header if provided)
-      const headers = { 'Content-Type': 'application/json' };
-      if (adminKey) headers['x-admin-key'] = adminKey;
-
-      fetch(`${API_URL}/api/products`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(jsonData),
-      }).then(res => {
-        if (res.ok) {
-          alert(`成功导入 ${jsonData.length} 个商品（已保存到服务器与本地）`);
-        } else {
-          alert(`导入成功 ${jsonData.length} 个商品（已保存到本地，未能保存到服务器）`);
-        }
-      }).catch(() => {
-        alert(`导入成功 ${jsonData.length} 个商品（已保存到本地，服务器不可达）`);
-      });
-    } catch (error) {
-      alert('文件导入失败，请确保文件格式正确');
-      console.error(error);
-    }
-    setIsUploading(false);
-    event.target.value = '';
+    const handleFileUpload = async (event) => {
+    // This handler is now obsolete; file upload is handled by AdminPanel
+    // Keeping it as empty for backward compatibility
   };
 
   const filteredProducts = useMemo(() => {
@@ -193,42 +91,9 @@ const LuxuryProductSearch = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-gray-900">奢侈品价格查询系统</h1>
-            <div className="flex items-center gap-3">
-              {showAdminInput ? (
-                <label className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 cursor-pointer transition">
-                  <Upload size={20} />
-                  <span>{isUploading ? '导入中...' : '导入商品'}</span>
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    disabled={isUploading}
-                  />
-                </label>
-              ) : null}
-
-              <button
-                onClick={() => setShowAdminInput(s => !s)}
-                className="px-3 py-2 border rounded text-sm"
-                title="管理员模式：输入密钥后上传将尝试保存到服务器"
-              >
-                管理员
-              </button>
-            </div>
           </div>
         </div>
       </header>
-      {showAdminInput && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-          <div className="flex items-center gap-3">
-            <label className="text-sm text-gray-700">Admin Key:</label>
-            <input type="password" value={adminKey} onChange={(e) => setAdminKey(e.target.value)} className="border rounded px-2 py-1" />
-            <button onClick={() => { if (navigator.clipboard) { navigator.clipboard.writeText(adminKey); } }} className="px-2 py-1 border rounded text-sm">复制</button>
-            <div className="text-sm text-gray-500">输入管理员密钥后，上传时会尝试写入服务器（生产请设置环境变量 ADMIN_KEY）。</div>
-          </div>
-        </div>
-      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
