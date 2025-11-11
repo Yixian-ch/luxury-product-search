@@ -52,14 +52,108 @@ app.post('/api/products', (req, res) => {
 
   const body = req.body;
   if (!Array.isArray(body)) return res.status(400).json({ error: 'Expected array of products' });
-  const ok = writeProducts(body);
+  // Enforce reference presence and batch-level deduplication (case-insensitive)
+  const normalizeRef = (v) => (typeof v === 'string' ? v.trim().toLowerCase() : '');
+  const missingRefIndices = [];
+  const seenInBatch = new Set();
+  const deduped = [];
+  const skippedRefs = [];
+  for (let i = 0; i < body.length; i += 1) {
+    const item = body[i] || {};
+    const refNorm = normalizeRef(item.reference);
+    if (!refNorm) {
+      missingRefIndices.push(i);
+      continue;
+    }
+    if (seenInBatch.has(refNorm)) {
+      skippedRefs.push(item.reference);
+      continue;
+    }
+    seenInBatch.add(refNorm);
+    deduped.push(item);
+  }
+  if (missingRefIndices.length > 0) {
+    return res.status(400).json({ error: 'reference_required', indices: missingRefIndices });
+  }
+
+  // Merge with existing by reference ONLY; keep existing records, do not overwrite
+  const existing = readProducts();
+  const mapByRef = new Map();
+  existing.forEach((p) => {
+    const r = normalizeRef(p.reference);
+    if (r) mapByRef.set(r, p);
+  });
+
+  let inserted = 0;
+  deduped.forEach((p) => {
+    const r = normalizeRef(p.reference);
+    if (!mapByRef.has(r)) {
+      mapByRef.set(r, p);
+      inserted += 1;
+    }
+  });
+
+  const result = Array.from(mapByRef.values());
+  const ok = writeProducts(result);
   if (!ok) return res.status(500).json({ error: 'Failed to save products' });
-  res.json({ ok: true, saved: body.length });
+  res.json({
+    ok: true,
+    inserted,
+    duplicatesSkipped: skippedRefs.length,
+    skippedRefs,
+    total: result.length
+  });
 });
 
 // simple health
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
+// Get single product by reference (optional helper)
+app.get('/api/products/:reference', (req, res) => {
+  const ref = (req.params.reference || '').toString().trim().toLowerCase();
+  if (!ref) return res.status(400).json({ error: 'reference_required' });
+  const items = readProducts();
+  const found = items.find((p) => (p.reference || '').toString().trim().toLowerCase() === ref);
+  if (!found) return res.status(404).json({ error: 'not_found' });
+  res.json(found);
+});
+
+// Patch single product (update any fields except reference)
+app.patch('/api/products/:reference', (req, res) => {
+  const headerKey = req.headers['x-admin-key'] || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+  if (!headerKey || headerKey !== ADMIN_KEY) return res.status(401).json({ error: 'unauthorized' });
+  const ref = (req.params.reference || '').toString().trim().toLowerCase();
+  if (!ref) return res.status(400).json({ error: 'reference_required' });
+  const updates = req.body || {};
+  if (Object.prototype.hasOwnProperty.call(updates, 'reference')) {
+    return res.status(400).json({ error: 'reference_immutable' });
+  }
+
+  const items = readProducts();
+  const idx = items.findIndex((p) => (p.reference || '').toString().trim().toLowerCase() === ref);
+  if (idx === -1) return res.status(404).json({ error: 'not_found' });
+
+  // Basic normalization
+  const sanitized = { ...updates };
+  if (sanitized.prix_vente !== undefined) {
+    const num = Number.parseFloat(String(sanitized.prix_vente).replace(/,/g, '.'));
+    if (Number.isNaN(num)) return res.status(400).json({ error: 'invalid_prix_vente' });
+    sanitized.prix_vente = num;
+  }
+  if (sanitized.Link !== undefined) {
+    sanitized.Link = String(sanitized.Link);
+  }
+  if (sanitized.lien_externe !== undefined) {
+    sanitized.lien_externe = String(sanitized.lien_externe);
+  }
+
+  const before = items[idx];
+  const after = { ...before, ...sanitized };
+  items[idx] = after;
+  const ok = writeProducts(items);
+  if (!ok) return res.status(500).json({ error: 'Failed to save products' });
+  res.json({ ok: true, reference: before.reference, updatedFields: Object.keys(sanitized) });
+});
 app.listen(PORT, () => {
   console.log(`Server started on port ${PORT}`);
   console.log(`Data file: ${DATA_FILE}`);

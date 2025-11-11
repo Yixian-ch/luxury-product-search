@@ -12,6 +12,7 @@ const LuxuryProductSearch = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [groupByBrand, setGroupByBrand] = useState(false);
 
   // load from localStorage on mount
   React.useEffect(() => {
@@ -64,6 +65,19 @@ const LuxuryProductSearch = () => {
     return arr;
   }, [filteredProducts, sortBy]);
 
+  // group by brand (marque)
+  const groupedByBrand = useMemo(() => {
+    const groups = new Map();
+    const source = [...sortedProducts];
+    source.forEach((p) => {
+      const brand = (p.marque && String(p.marque).trim()) || '未分类品牌';
+      if (!groups.has(brand)) groups.set(brand, []);
+      groups.get(brand).push(p);
+    });
+    // sort groups alphabetically by brand name
+    return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [sortedProducts]);
+
   // pagination slice
   const pagedProducts = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -105,6 +119,13 @@ const LuxuryProductSearch = () => {
               共 {products.length} 个商品 {searchTerm && `· 找到 ${filteredProducts.length} 个结果`}
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setGroupByBrand(v => !v)}
+                className={`px-3 py-1 border rounded ${groupByBrand ? 'bg-black text-white' : ''}`}
+                title="按品牌分组显示"
+              >
+                {groupByBrand ? '分组：按品牌（已启用）' : '分组：按品牌'}
+              </button>
               <label className="text-sm text-gray-600">排序:</label>
               <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }} className="border rounded px-2 py-1">
                 <option value="">默认</option>
@@ -131,6 +152,73 @@ const LuxuryProductSearch = () => {
             <h3 className="text-xl font-semibold text-gray-700 mb-2">暂无商品数据</h3>
             <p className="text-gray-500">请点击右上角"导入商品"按钮上传 Excel 文件</p>
           </div>
+        ) : groupByBrand ? (
+          <div className="space-y-10">
+            {groupedByBrand.map(([brand, items]) => (
+              <section key={brand}>
+                <h2 className="text-xl font-bold mb-4">{brand}（{items.length}）</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {items.map((product, index) => (
+                    <div
+                      key={`${brand}-${index}`}
+                      className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition cursor-pointer"
+                      onClick={() => setSelectedProduct(product)}
+                    >
+                      <div className="aspect-square bg-gray-100 relative">
+                        {product.Link ? (
+                          <img
+                            src={product.Link}
+                            alt={product.produit || '商品图片'}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                          <Package size={48} />
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-semibold text-lg mb-1 line-clamp-2">
+                          {product.produit || '未命名商品'}
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-2 line-clamp-1">
+                          {product.marque || '品牌未知'}
+                        </p>
+                        <div className="flex items-center justify-between mt-3">
+                          <span className="text-2xl font-bold text-black">
+                            {formatPrice(product.prix_vente)}
+                          </span>
+                          <button className="flex items-center gap-1 text-sm text-gray-600 hover:text-black">
+                            <Eye size={16} />
+                            查看详情
+                          </button>
+                        </div>
+                        {product.reference && (
+                          <p className="text-xs text-gray-500 mt-2">
+                            识别码: {product.reference}
+                          </p>
+                        )}
+                        {product.lien_externe && (
+                          <a
+                            href={product.lien_externe}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline mt-2 inline-block"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            前往商品链接
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         ) : (
           <div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -145,6 +233,7 @@ const LuxuryProductSearch = () => {
                     <img
                       src={product.Link}
                       alt={product.produit || '商品图片'}
+                      loading="lazy"
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.target.style.display = 'none';
@@ -177,6 +266,17 @@ const LuxuryProductSearch = () => {
                     <p className="text-xs text-gray-500 mt-2">
                       识别码: {product.reference}
                     </p>
+                  )}
+                  {product.lien_externe && (
+                    <a
+                      href={product.lien_externe}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 hover:underline mt-2 inline-block"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      前往商品链接
+                    </a>
                   )}
                 </div>
               </div>
@@ -223,6 +323,7 @@ const LuxuryProductSearch = () => {
                     <img
                       src={selectedProduct.Link}
                       alt={selectedProduct.produit}
+                      loading="lazy"
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.target.style.display = 'none';
