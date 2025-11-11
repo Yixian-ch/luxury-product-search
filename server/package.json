@@ -1,0 +1,14 @@
+{
+  "name": "luxury-product-api",
+  "version": "1.0.0",
+  "description": "Backend API for luxury product search",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.4",
+    "cors": "^2.8.5"
+  }
+}
