@@ -194,17 +194,19 @@ const LuxuryProductSearch = () => {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-gray-900">奢侈品价格查询系统</h1>
             <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 cursor-pointer transition">
-                <Upload size={20} />
-                <span>{isUploading ? '导入中...' : '导入商品'}</span>
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  disabled={isUploading}
-                />
-              </label>
+              {showAdminInput ? (
+                <label className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 cursor-pointer transition">
+                  <Upload size={20} />
+                  <span>{isUploading ? '导入中...' : '导入商品'}</span>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    disabled={isUploading}
+                  />
+                </label>
+              ) : null}
 
               <button
                 onClick={() => setShowAdminInput(s => !s)}
