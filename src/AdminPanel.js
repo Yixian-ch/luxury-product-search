@@ -50,6 +50,8 @@ const AdminPanel = ({ onLogout }) => {
         reference: 'reference',
         referencee: 'reference',
         'référence': 'reference',
+        'Référence': 'reference',  // Direct mapping for capitalized version
+        'REFERENCE': 'reference',
         dimension: 'dimension',
         prix_vente: 'prix_vente',
         prixvente: 'prix_vente',
@@ -72,8 +74,25 @@ const AdminPanel = ({ onLogout }) => {
       const normalizeRow = (row) => {
         const out = {};
         Object.keys(row).forEach((k) => {
-          const nk = normalizeHeader(k);
-          const mapped = headerMap[nk] || nk;
+          // First try direct mapping (for exact matches like "Référence")
+          let mapped = headerMap[k] || headerMap[k.toLowerCase()];
+          
+          // If not found, normalize and try again
+          if (!mapped) {
+            const nk = normalizeHeader(k);
+            mapped = headerMap[nk];
+            
+            // Special case: if normalized key contains "reference" (any variant), map to "reference"
+            if (!mapped && nk.includes('reference')) {
+              mapped = 'reference';
+            }
+            
+            // Fallback to normalized key if still not mapped
+            if (!mapped) {
+              mapped = nk;
+            }
+          }
+          
           out[mapped] = row[k];
         });
 
