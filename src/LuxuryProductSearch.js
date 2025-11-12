@@ -92,6 +92,17 @@ const LuxuryProductSearch = () => {
     return `€${Number(price).toLocaleString('fr-FR')}`;
   };
 
+  const getProductImageUrl = (item) => {
+    if (!item) return '';
+    const candidates = [
+      item.lien_externe,
+      item.image_url,
+      item.image,
+      item.photo,
+    ];
+    return candidates.find((url) => typeof url === 'string' && url.trim()) || '';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <header className="bg-white shadow-sm border-b border-gray-200">
@@ -158,24 +169,26 @@ const LuxuryProductSearch = () => {
               <section key={brand}>
                 <h2 className="text-xl font-bold mb-4">{brand}（{items.length}）</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {items.map((product, index) => (
-                    <div
-                      key={`${brand}-${index}`}
-                      className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition cursor-pointer"
-                      onClick={() => setSelectedProduct(product)}
-                    >
-                      <div className="aspect-square bg-gray-100 relative">
-                        {product.Link ? (
-                          <img
-                            src={product.Link}
-                            alt={product.produit || '商品图片'}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              e.target.nextSibling.style.display = 'flex';
-                            }}
-                          />
-                        ) : null}
+                  {items.map((product, index) => {
+                    const imageUrl = getProductImageUrl(product);
+                    return (
+                      <div
+                        key={`${brand}-${index}`}
+                        className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition cursor-pointer"
+                        onClick={() => setSelectedProduct(product)}
+                      >
+                        <div className="aspect-square bg-gray-100 relative">
+                          {imageUrl ? (
+                            <img
+                              src={imageUrl}
+                              alt={product.produit || '商品图片'}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
                         <div className="absolute inset-0 flex items-center justify-center text-gray-400">
                           <Package size={48} />
                         </div>
@@ -201,9 +214,9 @@ const LuxuryProductSearch = () => {
                             识别码: {product.reference}
                           </p>
                         )}
-                        {product.lien_externe && (
+                        {product.Link && (
                           <a
-                            href={product.lien_externe}
+                            href={product.Link}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-blue-600 hover:underline mt-2 inline-block"
@@ -214,7 +227,8 @@ const LuxuryProductSearch = () => {
                         )}
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               </section>
             ))}
@@ -222,25 +236,27 @@ const LuxuryProductSearch = () => {
         ) : (
           <div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {pagedProducts.map((product, index) => (
-              <div
-                key={index}
-                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition cursor-pointer"
-                onClick={() => setSelectedProduct(product)}
-              >
-                <div className="aspect-square bg-gray-100 relative">
-                  {product.Link ? (
-                    <img
-                      src={product.Link}
-                      alt={product.produit || '商品图片'}
-                      loading="lazy"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
-                      }}
-                    />
-                  ) : null}
+              {pagedProducts.map((product, index) => {
+                const imageUrl = getProductImageUrl(product);
+                return (
+                <div
+                  key={index}
+                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition cursor-pointer"
+                  onClick={() => setSelectedProduct(product)}
+                >
+                  <div className="aspect-square bg-gray-100 relative">
+                    {imageUrl ? (
+                      <img
+                        src={imageUrl}
+                        alt={product.produit || '商品图片'}
+                        loading="lazy"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
                   <div className="absolute inset-0 flex items-center justify-center text-gray-400">
                     <Package size={48} />
                   </div>
@@ -280,7 +296,8 @@ const LuxuryProductSearch = () => {
                   )}
                 </div>
               </div>
-              ))}
+              );
+              })}
             </div>
 
             {/* pagination controls */}
@@ -319,9 +336,9 @@ const LuxuryProductSearch = () => {
             <div className="p-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative">
-                  {selectedProduct.Link ? (
+                  {getProductImageUrl(selectedProduct) ? (
                     <img
-                      src={selectedProduct.Link}
+                      src={getProductImageUrl(selectedProduct)}
                       alt={selectedProduct.produit}
                       loading="lazy"
                       className="w-full h-full object-cover"
