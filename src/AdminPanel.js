@@ -139,6 +139,11 @@ const AdminPanel = ({ onLogout }) => {
         return;
       }
 
+      // Debug: log API URL and data size
+      console.log('上传数据到:', `${API_URL}/api/products`);
+      console.log('数据条数:', jsonData.length);
+      console.log('数据大小:', JSON.stringify(jsonData).length, 'bytes');
+
       // Send to server
       const headers = {
         'Content-Type': 'application/json',
@@ -168,13 +173,31 @@ const AdminPanel = ({ onLogout }) => {
         sessionStorage.removeItem('admin_key');
         onLogout();
       } else {
-        setMessage('✗ 服务器返回错误，请检查后端。');
+        // 尝试获取服务器返回的错误详情
+        let errorDetail = '';
+        try {
+          const errorData = await response.json();
+          errorDetail = errorData.error || '';
+        } catch (e) {
+          errorDetail = `HTTP ${response.status}`;
+        }
+        setMessage(`✗ 服务器返回错误：${errorDetail || response.status}。请检查后端连接和配置。`);
         setMessageType('error');
+        console.error('Server error:', response.status, errorDetail);
       }
     } catch (error) {
-      setMessage('✗ 文件导入失败，请确保文件格式正确。');
+      // 更详细的错误信息
+      let errorMsg = '✗ 文件上传失败：';
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        errorMsg += `无法连接到服务器 (${API_URL})。请检查：\n1. 后端服务是否运行\n2. API_URL 配置是否正确\n3. 网络连接是否正常`;
+      } else if (error.message) {
+        errorMsg += error.message;
+      } else {
+        errorMsg += '未知错误，请检查文件格式和网络连接。';
+      }
+      setMessage(errorMsg);
       setMessageType('error');
-      console.error(error);
+      console.error('Upload error:', error);
     }
     setIsUploading(false);
     event.target.value = '';
@@ -299,11 +322,16 @@ const AdminPanel = ({ onLogout }) => {
               >
                 <AlertCircle
                   size={20}
-                  className={messageType === 'success' ? 'text-green-600' : 'text-red-600'}
+                  className={messageType === 'success' ? 'text-green-600' : 'text-red-600 flex-shrink-0 mt-0.5'}
                 />
-                <p className={messageType === 'success' ? 'text-green-700' : 'text-red-700'}>
-                  {message}
-                </p>
+                <div className={messageType === 'success' ? 'text-green-700' : 'text-red-700'}>
+                  <p className="whitespace-pre-line">{message}</p>
+                  {messageType === 'error' && (
+                    <p className="text-xs mt-2 text-gray-600">
+                      提示：打开浏览器控制台（F12）查看详细错误信息
+                    </p>
+                  )}
+                </div>
               </div>
             )}
             {stats && (

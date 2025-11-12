@@ -46,63 +46,85 @@ app.get('/api/products', (req, res) => {
 
 // Replace all products (used after upload/import)
 app.post('/api/products', (req, res) => {
-  // simple admin auth: x-admin-key header OR Authorization: Bearer <key>
-  const headerKey = req.headers['x-admin-key'] || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
-  if (!headerKey || headerKey !== ADMIN_KEY) return res.status(401).json({ error: 'unauthorized' });
+  try {
+    console.log('收到上传请求，Content-Type:', req.headers['content-type']);
+    console.log('请求体大小:', JSON.stringify(req.body || {}).length, 'bytes');
+    
+    // simple admin auth: x-admin-key header OR Authorization: Bearer <key>
+    const headerKey = req.headers['x-admin-key'] || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+    if (!headerKey || headerKey !== ADMIN_KEY) {
+      console.warn('认证失败: 提供的密钥', headerKey ? '存在但不匹配' : '不存在');
+      return res.status(401).json({ error: 'unauthorized' });
+    }
 
-  const body = req.body;
-  if (!Array.isArray(body)) return res.status(400).json({ error: 'Expected array of products' });
-  // Enforce reference presence and batch-level deduplication (case-insensitive)
-  const normalizeRef = (v) => (typeof v === 'string' ? v.trim().toLowerCase() : '');
-  const missingRefIndices = [];
-  const seenInBatch = new Set();
-  const deduped = [];
-  const skippedRefs = [];
-  for (let i = 0; i < body.length; i += 1) {
-    const item = body[i] || {};
-    const refNorm = normalizeRef(item.reference);
-    if (!refNorm) {
-      missingRefIndices.push(i);
-      continue;
+    const body = req.body;
+    if (!Array.isArray(body)) {
+      console.warn('请求体不是数组:', typeof body);
+      return res.status(400).json({ error: 'Expected array of products' });
     }
-    if (seenInBatch.has(refNorm)) {
-      skippedRefs.push(item.reference);
-      continue;
+    
+    console.log('收到产品数量:', body.length);
+    
+    // Enforce reference presence and batch-level deduplication (case-insensitive)
+    const normalizeRef = (v) => (typeof v === 'string' ? v.trim().toLowerCase() : '');
+    const missingRefIndices = [];
+    const seenInBatch = new Set();
+    const deduped = [];
+    const skippedRefs = [];
+    for (let i = 0; i < body.length; i += 1) {
+      const item = body[i] || {};
+      const refNorm = normalizeRef(item.reference);
+      if (!refNorm) {
+        missingRefIndices.push(i);
+        continue;
+      }
+      if (seenInBatch.has(refNorm)) {
+        skippedRefs.push(item.reference);
+        continue;
+      }
+      seenInBatch.add(refNorm);
+      deduped.push(item);
     }
-    seenInBatch.add(refNorm);
-    deduped.push(item);
+    if (missingRefIndices.length > 0) {
+      return res.status(400).json({ error: 'reference_required', indices: missingRefIndices });
+    }
+
+    // Merge with existing by reference ONLY; keep existing records, do not overwrite
+    const existing = readProducts();
+    const mapByRef = new Map();
+    existing.forEach((p) => {
+      const r = normalizeRef(p.reference);
+      if (r) mapByRef.set(r, p);
+    });
+
+    let inserted = 0;
+    deduped.forEach((p) => {
+      const r = normalizeRef(p.reference);
+      if (!mapByRef.has(r)) {
+        mapByRef.set(r, p);
+        inserted += 1;
+      }
+    });
+
+    const result = Array.from(mapByRef.values());
+    const ok = writeProducts(result);
+    if (!ok) {
+      console.error('写入文件失败');
+      return res.status(500).json({ error: 'Failed to save products' });
+    }
+    
+    console.log('上传成功: 新增', inserted, '跳过重复', skippedRefs.length, '总量', result.length);
+    res.json({
+      ok: true,
+      inserted,
+      duplicatesSkipped: skippedRefs.length,
+      skippedRefs,
+      total: result.length
+    });
+  } catch (error) {
+    console.error('处理上传请求时出错:', error);
+    res.status(500).json({ error: 'Internal server error', message: error.message });
   }
-  if (missingRefIndices.length > 0) {
-    return res.status(400).json({ error: 'reference_required', indices: missingRefIndices });
-  }
-
-  // Merge with existing by reference ONLY; keep existing records, do not overwrite
-  const existing = readProducts();
-  const mapByRef = new Map();
-  existing.forEach((p) => {
-    const r = normalizeRef(p.reference);
-    if (r) mapByRef.set(r, p);
-  });
-
-  let inserted = 0;
-  deduped.forEach((p) => {
-    const r = normalizeRef(p.reference);
-    if (!mapByRef.has(r)) {
-      mapByRef.set(r, p);
-      inserted += 1;
-    }
-  });
-
-  const result = Array.from(mapByRef.values());
-  const ok = writeProducts(result);
-  if (!ok) return res.status(500).json({ error: 'Failed to save products' });
-  res.json({
-    ok: true,
-    inserted,
-    duplicatesSkipped: skippedRefs.length,
-    skippedRefs,
-    total: result.length
-  });
 });
 
 // simple health
@@ -154,7 +176,18 @@ app.patch('/api/products/:reference', (req, res) => {
   if (!ok) return res.status(500).json({ error: 'Failed to save products' });
   res.json({ ok: true, reference: before.reference, updatedFields: Object.keys(sanitized) });
 });
+
+// 错误处理中间件（必须在所有路由之后）
+app.use((err, req, res, next) => {
+  console.error('Express 错误:', err);
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ error: 'Invalid JSON in request body' });
+  }
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 app.listen(PORT, () => {
   console.log(`Server started on port ${PORT}`);
   console.log(`Data file: ${DATA_FILE}`);
+  console.log(`Admin key: ${ADMIN_KEY === 'dev-secret' ? '使用默认密钥（开发模式）' : '已从环境变量加载'}`);
 });
