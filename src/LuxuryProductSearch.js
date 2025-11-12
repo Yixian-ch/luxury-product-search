@@ -267,9 +267,9 @@ const LuxuryProductSearch = () => {
                       识别码: {product.reference}
                     </p>
                   )}
-                  {product.lien_externe && (
+                  {product.Link && (
                     <a
-                      href={product.lien_externe}
+                      href={product.Link}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-blue-600 hover:underline mt-2 inline-block"
