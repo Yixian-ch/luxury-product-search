@@ -13,6 +13,7 @@ const LuxuryProductSearch = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [groupByBrand, setGroupByBrand] = useState(false);
+  const [selectedBrand, setSelectedBrand] = useState('ALL');
 
   // load from localStorage on mount
   React.useEffect(() => {
@@ -42,17 +43,38 @@ const LuxuryProductSearch = () => {
     return () => { mounted = false; };
   }, []);
 
-  const filteredProducts = useMemo(() => {
-    if (!searchTerm.trim()) return products;
+  const availableBrands = useMemo(() => {
+    const set = new Set();
+    products.forEach((item) => {
+      const brand = typeof item.marque === 'string' ? item.marque.trim() : '';
+      if (brand) set.add(brand);
+    });
+    return ['ALL', ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+  }, [products]);
 
-    const term = searchTerm.toLowerCase();
-    return products.filter(product =>
-      (product.produit?.toLowerCase().includes(term)) ||
-      (String(product.reference || '').toLowerCase().includes(term)) ||
-      (product.designation?.toLowerCase().includes(term)) ||
-      (product.marque?.toLowerCase().includes(term))
-    );
-  }, [products, searchTerm]);
+  const filteredProducts = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return products.filter((product) => {
+      const brand = typeof product.marque === 'string' ? product.marque.trim() : '';
+      if (selectedBrand !== 'ALL' && brand !== selectedBrand) {
+        return false;
+      }
+
+      if (!term) return true;
+
+      const fields = [
+        product.produit,
+        product.reference,
+        product.designation,
+        product.marque,
+      ];
+
+      return fields.some((field) => {
+        if (!field) return false;
+        return String(field).toLowerCase().includes(term);
+      });
+    });
+  }, [products, searchTerm, selectedBrand]);
 
   // apply sorting
   const sortedProducts = useMemo(() => {
@@ -110,6 +132,9 @@ const LuxuryProductSearch = () => {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-gray-900">奢侈品价格查询系统</h1>
           </div>
+          <p className="mt-2 text-sm text-gray-600 leading-relaxed">
+            本网站为非营利性质的公开信息分享平台，所有数据仅供参考学习与市场研究，不构成任何形式的交易撮合或商业承诺。若需购买或获取产品，请以品牌官方网站及授权渠道公布的信息为准。
+          </p>
         </div>
       </header>
 
@@ -153,6 +178,26 @@ const LuxuryProductSearch = () => {
                 <option value={24}>24</option>
                 <option value={48}>48</option>
               </select>
+            </div>
+          </div>
+          <div className="mt-3">
+            <div className="flex items-center gap-2 overflow-x-auto pb-2">
+              {availableBrands.map((brand) => (
+                <button
+                  key={brand}
+                  onClick={() => {
+                    setSelectedBrand(brand);
+                    setCurrentPage(1);
+                  }}
+                  className={`whitespace-nowrap px-3 py-1 border rounded-full text-sm transition ${
+                    selectedBrand === brand
+                      ? 'bg-black text-white border-black'
+                      : 'hover:bg-gray-100'
+                  }`}
+                >
+                  {brand === 'ALL' ? '全部品牌' : brand}
+                </button>
+              ))}
             </div>
           </div>
         </div>

@@ -13,6 +13,8 @@ const AdminPanel = ({ onLogout }) => {
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState(null); // product being edited
   const [editDraft, setEditDraft] = useState({});
+  const [brandToDelete, setBrandToDelete] = useState('');
+  const [isDeletingBrand, setIsDeletingBrand] = useState(false);
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -104,6 +106,10 @@ const AdminPanel = ({ onLogout }) => {
           if (!Number.isNaN(num)) out.prix_vente = num;
         }
 
+      if (out.reference !== undefined && out.reference !== null) {
+        out.reference = String(out.reference).trim();
+      }
+
         return out;
       };
 
@@ -112,8 +118,12 @@ const AdminPanel = ({ onLogout }) => {
       // Pre-check: every item must have non-empty reference
       const missing = [];
       jsonData.forEach((item, idx) => {
-        const ref = typeof item.reference === 'string' ? item.reference.trim() : '';
-        if (!ref) missing.push(idx + 1); // human-friendly row index
+        const ref = item && item.reference != null ? String(item.reference).trim() : '';
+        if (!ref) {
+          missing.push(idx + 1); // human-friendly row index
+        } else {
+          item.reference = ref;
+        }
       });
       if (missing.length > 0) {
         setMessage(`✗ 上传失败：以下行缺少 reference 字段：${missing.slice(0, 10).join(', ')}${missing.length > 10 ? ' ...' : ''}`);
@@ -226,6 +236,15 @@ const AdminPanel = ({ onLogout }) => {
     );
   }, [products, search]);
 
+  const brandOptions = React.useMemo(() => {
+    const set = new Set();
+    products.forEach((p) => {
+      const brand = typeof p.marque === 'string' ? p.marque.trim() : '';
+      if (brand) set.add(brand);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [products]);
+
   const openEdit = (product) => {
     setEditing(product);
     const draft = { ...product };
@@ -261,6 +280,59 @@ const AdminPanel = ({ onLogout }) => {
       const err = await res.json().catch(() => ({}));
       setMessage(`✗ 更新失败：${err.error || res.status}`);
       setMessageType('error');
+    }
+  };
+
+  const handleDeleteBrand = async () => {
+    if (!brandToDelete) return;
+    const adminKey = sessionStorage.getItem('admin_key') || '';
+    if (!adminKey) {
+      setMessage('✗ 未找到管理员密钥，请重新登录。');
+      setMessageType('error');
+      onLogout();
+      return;
+    }
+
+    const confirmed = window.confirm(`确认删除品牌 "${brandToDelete}" 的所有商品吗？此操作不可恢复。`);
+    if (!confirmed) return;
+
+    setIsDeletingBrand(true);
+    try {
+      const res = await fetch(`${API_URL}/api/brands/${encodeURIComponent(brandToDelete)}`, {
+        method: 'DELETE',
+        headers: {
+          'x-admin-key': adminKey,
+        },
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        setProducts(prev =>
+          prev.filter(p => {
+            const brand = typeof p.marque === 'string' ? p.marque.trim() : '';
+            return brand !== brandToDelete;
+          })
+        );
+        setMessage(`✓ 已删除品牌 "${brandToDelete}" 的 ${result.removed} 条记录，当前总量 ${result.total}`);
+        setMessageType('success');
+        setStats(null);
+        setBrandToDelete('');
+      } else if (res.status === 401) {
+        setMessage('✗ 管理员密钥无效，请重新登录。');
+        setMessageType('error');
+        sessionStorage.removeItem('admin_key');
+        onLogout();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setMessage(`✗ 删除失败：${err.error || res.status}`);
+        setMessageType('error');
+      }
+    } catch (error) {
+      setMessage(`✗ 删除失败：${error.message || '网络错误'}`);
+      setMessageType('error');
+      console.error('Delete brand error:', error);
+    } finally {
+      setIsDeletingBrand(false);
     }
   };
 
@@ -353,14 +425,38 @@ const AdminPanel = ({ onLogout }) => {
 
         {/* Management list */}
         <div className="mt-8 bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold">商品管理</h2>
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="搜索 reference / 名称 / 品牌"
-              className="border rounded px-3 py-2"
-            />
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold">商品管理</h2>
+              <p className="text-sm text-gray-500 mt-1">支持搜索、单条编辑以及批量删除品牌</p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="搜索 reference / 名称 / 品牌"
+                className="border rounded px-3 py-2"
+              />
+              <div className="flex items-center gap-2">
+                <select
+                  value={brandToDelete}
+                  onChange={e => setBrandToDelete(e.target.value)}
+                  className="border rounded px-3 py-2 text-sm"
+                >
+                  <option value="">选择品牌批量删除</option>
+                  {brandOptions.map((brand) => (
+                    <option key={brand} value={brand}>{brand}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleDeleteBrand}
+                  disabled={!brandToDelete || isDeletingBrand}
+                  className="px-4 py-2 rounded bg-red-600 text-white disabled:opacity-60 disabled:cursor-not-allowed hover:bg-red-700 transition text-sm"
+                >
+                  {isDeletingBrand ? '删除中...' : '删除品牌'}
+                </button>
+              </div>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">

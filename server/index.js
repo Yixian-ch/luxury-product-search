@@ -66,59 +66,47 @@ app.post('/api/products', (req, res) => {
     console.log('收到产品数量:', body.length);
     
     // Enforce reference presence and batch-level deduplication (case-insensitive)
-    const normalizeRef = (v) => (typeof v === 'string' ? v.trim().toLowerCase() : '');
+    const normalizeRefValue = (value) => {
+      if (value === undefined || value === null) return '';
+      return String(value).trim();
+    };
+
     const missingRefIndices = [];
-    const seenInBatch = new Set();
-    const deduped = [];
-    const skippedRefs = [];
+    const preparedItems = [];
     for (let i = 0; i < body.length; i += 1) {
       const item = body[i] || {};
-      const refNorm = normalizeRef(item.reference);
-      if (!refNorm) {
+      const ref = normalizeRefValue(item.reference);
+      if (!ref) {
         missingRefIndices.push(i);
         continue;
       }
-      if (seenInBatch.has(refNorm)) {
-        skippedRefs.push(item.reference);
-        continue;
-      }
-      seenInBatch.add(refNorm);
-      deduped.push(item);
+      preparedItems.push({
+        ...item,
+        reference: ref,
+      });
     }
+
     if (missingRefIndices.length > 0) {
       return res.status(400).json({ error: 'reference_required', indices: missingRefIndices });
     }
 
-    // Merge with existing by reference ONLY; keep existing records, do not overwrite
+    // Append new items while allowing duplicate references for related variants
     const existing = readProducts();
-    const mapByRef = new Map();
-    existing.forEach((p) => {
-      const r = normalizeRef(p.reference);
-      if (r) mapByRef.set(r, p);
-    });
+    const result = existing.concat(preparedItems);
+    const inserted = preparedItems.length;
 
-    let inserted = 0;
-    deduped.forEach((p) => {
-      const r = normalizeRef(p.reference);
-      if (!mapByRef.has(r)) {
-        mapByRef.set(r, p);
-        inserted += 1;
-      }
-    });
-
-    const result = Array.from(mapByRef.values());
     const ok = writeProducts(result);
     if (!ok) {
       console.error('写入文件失败');
       return res.status(500).json({ error: 'Failed to save products' });
     }
     
-    console.log('上传成功: 新增', inserted, '跳过重复', skippedRefs.length, '总量', result.length);
+    console.log('上传成功: 新增', inserted, '当前总量', result.length);
     res.json({
       ok: true,
       inserted,
-      duplicatesSkipped: skippedRefs.length,
-      skippedRefs,
+      duplicatesSkipped: 0,
+      skippedRefs: [],
       total: result.length
     });
   } catch (error) {
@@ -175,6 +163,45 @@ app.patch('/api/products/:reference', (req, res) => {
   const ok = writeProducts(items);
   if (!ok) return res.status(500).json({ error: 'Failed to save products' });
   res.json({ ok: true, reference: before.reference, updatedFields: Object.keys(sanitized) });
+});
+
+// Delete all products for a specific brand (case-insensitive)
+app.delete('/api/brands/:brand', (req, res) => {
+  const headerKey = req.headers['x-admin-key'] || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+  if (!headerKey || headerKey !== ADMIN_KEY) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+
+  const brandRaw = req.params.brand;
+  const brand = typeof brandRaw === 'string' ? brandRaw.trim().toLowerCase() : '';
+  if (!brand) {
+    return res.status(400).json({ error: 'brand_required' });
+  }
+
+  const items = readProducts();
+  const remaining = [];
+  let removed = 0;
+
+  items.forEach((item) => {
+    const itemBrand = typeof item.marque === 'string' ? item.marque.trim().toLowerCase() : '';
+    if (itemBrand === brand) {
+      removed += 1;
+    } else {
+      remaining.push(item);
+    }
+  });
+
+  if (removed === 0) {
+    return res.status(404).json({ error: 'brand_not_found', removed });
+  }
+
+  const ok = writeProducts(remaining);
+  if (!ok) {
+    return res.status(500).json({ error: 'Failed to save products' });
+  }
+
+  console.log(`删除品牌 "${brand}" 项目数量:`, removed, '剩余总量:', remaining.length);
+  res.json({ ok: true, removed, total: remaining.length });
 });
 
 // 错误处理中间件（必须在所有路由之后）

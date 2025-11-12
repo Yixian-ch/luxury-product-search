@@ -1,70 +1,85 @@
-# Getting Started with Create React App
+# 奢侈品价格查询（非营利信息分享项目）
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+> 本项目仅用于公开信息整理与分享，不提供任何买卖撮合或商业性服务。所有数据来源于公开渠道，供学习、调研与参考使用。
 
-## Available Scripts
+## ✨ 项目定位
 
-In the project directory, you can run:
+- **非营利目的**：旨在帮助用户了解奢侈品市场价格区间、品牌趋势等公开信息。
+- **信息展示型网站**：前端提供搜索、筛选、分页、详情弹窗等体验；后端负责存储 JSON 数据并提供开放接口。
+- **管理员自维护**：通过 Excel 批量导入或按品牌批量删除，确保数据可控、可追溯。
 
-### `npm start`
+更多法律合规说明请参见 [`LEGAL_NOTICE.md`](./LEGAL_NOTICE.md)。
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## 🧩 功能概览
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- 按名称、识别码、品牌关键词搜索  
+- 价格 / 品牌排序、分页、品牌筛选  
+- 商品详情弹窗、图片展示  
+- 管理员登录、Excel 批量导入、单条编辑  
+- 按品牌批量删除数据（管理员操作）  
+- REST API（GET / POST / PATCH / DELETE）
 
-### `npm test`
+## 🏗 技术栈
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+| 层级 | 技术 | 说明 |
+| ---- | ---- | ---- |
+| 前端 | React 18、Tailwind CSS、SheetJS (xlsx)、lucide-react | 搜索展示与数据上传 |
+| 后端 | Express.js、CORS、中间件 | JSON 数据读写、鉴权 |
+| 存储 | 文件系统 (`server/data/products.json`) | Render 或本地部署均可使用 |
+| 部署 | Vercel（前端）、Render（后端） | 支持环境变量配置 |
 
-### `npm run build`
+## 🚀 本地开发
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bash
+# 启动后端
+cd server
+npm install
+npm start   # 默认监听 http://localhost:5000
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+# 启动前端（新终端）
+cd ..
+npm install
+npm start   # 默认监听 http://localhost:3000
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+前端启动后即可访问 `http://localhost:3000`，管理员登录默认密钥为 `dev-secret`（也可在启动后端时设置 `ADMIN_KEY` 环境变量）。
 
-### `npm run eject`
+## 🌐 部署配置
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+- Vercel（前端）：设置 `REACT_APP_API_URL=https://<your-backend>.onrender.com`
+- Render（后端）：设置 `ADMIN_KEY=<你的管理员密钥>`
+- 详细步骤见 [`SETUP_INSTRUCTIONS.md`](./SETUP_INSTRUCTIONS.md)
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## 📁 项目结构（节选）
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```
+temp-luxury/
+├── src/
+│   ├── App.js
+│   ├── LuxuryProductSearch.js
+│   ├── AdminPanel.js
+│   └── ...
+├── server/
+│   ├── index.js
+│   └── data/products.json
+├── LEGAL_NOTICE.md
+├── PROJECT_OVERVIEW.md
+├── SETUP_INSTRUCTIONS.md
+└── ...
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## 🤝 贡献与反馈
 
-## Learn More
+欢迎提交 Issue / Pull Request 或通过电子邮件反馈数据错误。请在提交前确认：
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+- 数据来源合法、可公开使用
+- 未提供任何敏感个人信息
+- 改动符合本项目非营利、信息分享的定位
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## 📄 法律与隐私
 
-### Code Splitting
+- 网站不存储、不处理用户隐私数据
+- 所有商品信息均来自公开渠道或授权数据
+- 未开展任何商业化行为
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+详尽法律声明请参阅 [`LEGAL_NOTICE.md`](./LEGAL_NOTICE.md)。欢迎关注项目最新进展并共同维护开放透明的数据生态。谢谢支持！
