@@ -5,14 +5,48 @@ const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const DATA_FILE = path.join(__dirname, 'data', 'products.json');
+const DATA_FILE = process.env.PRODUCTS_JSON_PATH || path.join(__dirname, 'data', 'products.json');
+const REMOTE_DATA_URL = process.env.PRODUCTS_DATA_URL || '';
+const REMOTE_DATA_BEARER = process.env.PRODUCTS_DATA_BEARER || process.env.HF_DATA_TOKEN || '';
+const HAS_GLOBAL_FETCH = typeof fetch === 'function';
 // Admin key for protecting write endpoints. Set ADMIN_KEY in environment for production.
 const ADMIN_KEY = process.env.ADMIN_KEY || 'dev-secret';
 
 // Ensure data directory exists
 const dataDir = path.dirname(DATA_FILE);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+fs.mkdirSync(dataDir, { recursive: true });
+
+async function ensureDataFile() {
+  if (fs.existsSync(DATA_FILE)) {
+    return;
+  }
+
+  if (!REMOTE_DATA_URL) {
+    console.warn('Data file is missing and PRODUCTS_DATA_URL is not set. API will start with empty product list.');
+    return;
+  }
+
+  if (!HAS_GLOBAL_FETCH) {
+    console.error('Global fetch API is not available. Please upgrade to Node.js 18+ or install a fetch polyfill.');
+    return;
+  }
+
+  try {
+    console.log('Downloading products data from', REMOTE_DATA_URL);
+    const headers = {};
+    if (REMOTE_DATA_BEARER) {
+      headers.Authorization = `Bearer ${REMOTE_DATA_BEARER}`;
+    }
+    const response = await fetch(REMOTE_DATA_URL, { headers });
+    if (!response.ok) {
+      throw new Error(`fetch failed with status ${response.status}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    fs.writeFileSync(DATA_FILE, Buffer.from(arrayBuffer));
+    console.log('Products data downloaded to', DATA_FILE);
+  } catch (error) {
+    console.error('Failed to download products data:', error);
+  }
 }
 
 app.use(cors());
@@ -213,8 +247,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server started on port ${PORT}`);
-  console.log(`Data file: ${DATA_FILE}`);
-  console.log(`Admin key: ${ADMIN_KEY === 'dev-secret' ? '使用默认密钥（开发模式）' : '已从环境变量加载'}`);
+ensureDataFile().finally(() => {
+  app.listen(PORT, () => {
+    console.log(`Server started on port ${PORT}`);
+    console.log(`Data file: ${DATA_FILE}`);
+    console.log(`Admin key: ${ADMIN_KEY === 'dev-secret' ? '使用默认密钥（开发模式）' : '已从环境变量加载'}`);
+    if (REMOTE_DATA_URL) {
+      console.log(`Remote data source: ${REMOTE_DATA_URL}`);
+    }
+  });
 });
