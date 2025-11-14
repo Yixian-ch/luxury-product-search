@@ -74,8 +74,17 @@ function writeProducts(data) {
 
 // Get all products
 app.get('/api/products', (req, res) => {
-  const products = readProducts();
-  res.json(products);
+  if (!fs.existsSync(DATA_FILE)) {
+    return res.json([]);
+  }
+
+  res.setHeader('Content-Type', 'application/json');
+  const stream = fs.createReadStream(DATA_FILE);
+  stream.on('error', (err) => {
+    console.error('Stream read error:', err);
+    res.status(500).json({ error: 'Failed to read products data' });
+  });
+  stream.pipe(res);
 });
 
 // Replace all products (used after upload/import)
