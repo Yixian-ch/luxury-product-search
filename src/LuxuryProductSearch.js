@@ -135,6 +135,7 @@ const LuxuryProductSearch = () => {
           <p className="mt-2 text-sm text-gray-600 leading-relaxed">
             本网站为非营利性质的公开信息分享平台，所有数据仅供参考学习与市场研究，不构成任何形式的交易撮合或商业承诺。若需购买或获取产品，请以品牌官方网站及授权渠道公布的信息为准。
           </p>
+          <p className="mt-2 text-xs text-gray-500">价格数据最后更新：2025 年 10 月 1 日</p>
         </div>
       </header>
 
