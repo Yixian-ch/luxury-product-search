@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
+const { pipeline } = require('stream/promises');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -38,11 +39,10 @@ async function ensureDataFile() {
       headers.Authorization = `Bearer ${REMOTE_DATA_BEARER}`;
     }
     const response = await fetch(REMOTE_DATA_URL, { headers });
-    if (!response.ok) {
+    if (!response.ok || !response.body) {
       throw new Error(`fetch failed with status ${response.status}`);
     }
-    const arrayBuffer = await response.arrayBuffer();
-    fs.writeFileSync(DATA_FILE, Buffer.from(arrayBuffer));
+    await pipeline(response.body, fs.createWriteStream(DATA_FILE));
     console.log('Products data downloaded to', DATA_FILE);
   } catch (error) {
     console.error('Failed to download products data:', error);
