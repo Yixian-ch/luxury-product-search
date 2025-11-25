@@ -15,6 +15,45 @@ const LuxuryProductSearch = () => {
   const [groupByBrand, setGroupByBrand] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState('ALL');
 
+  const parseSizes = (value) => {
+    if (!value && value !== 0) return [];
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => (item === null || item === undefined ? '' : String(item)))
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    return String(value)
+      .split(/[\s,，;/\\|]+/g)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+
+  const renderSizeBadges = (sizes, maxVisible = 6) => {
+    if (!sizes || sizes.length === 0) return null;
+    const visible = sizes.slice(0, maxVisible);
+    const remaining = sizes.length - visible.length;
+    return (
+      <div className="mt-2 flex flex-wrap gap-1">
+        {visible.map((size) => (
+          <span
+            key={size}
+            className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-full"
+          >
+            {size}
+          </span>
+        ))}
+        {remaining > 0 && (
+          <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 text-gray-600 rounded-full">
+            +{remaining}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  const selectedSizes = selectedProduct ? parseSizes(selectedProduct.taille) : [];
+
   // load from localStorage on mount
   React.useEffect(() => {
     let mounted = true;
@@ -246,6 +285,7 @@ const LuxuryProductSearch = () => {
                         <p className="text-sm text-gray-600 mb-2 line-clamp-1">
                           {product.marque || '品牌未知'}
                         </p>
+                {renderSizeBadges(parseSizes(product.taille))}
                         <div className="flex items-center justify-between mt-3">
                           <span className="text-2xl font-bold text-black">
                             {formatPrice(product.prix_vente)}
@@ -315,6 +355,7 @@ const LuxuryProductSearch = () => {
                   <p className="text-sm text-gray-600 mb-2 line-clamp-1">
                     {product.marque || '品牌未知'}
                   </p>
+                  {renderSizeBadges(parseSizes(product.taille))}
                   <div className="flex items-center justify-between mt-3">
                     <span className="text-2xl font-bold text-black">
                       {formatPrice(product.prix_vente)}
@@ -430,7 +471,22 @@ const LuxuryProductSearch = () => {
                         <span>{selectedProduct.couleur}</span>
                       </div>
                     )}
-                    {selectedProduct.taille && (
+                    {selectedSizes.length > 0 && (
+                      <div className="border-b pb-2">
+                        <span className="font-semibold block mb-2">尺寸:</span>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedSizes.map((size) => (
+                            <span
+                              key={size}
+                              className="px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded-md"
+                            >
+                              {size}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {selectedSizes.length === 0 && selectedProduct.taille && (
                       <div className="flex border-b pb-2">
                         <span className="font-semibold w-32">尺寸:</span>
                         <span>{selectedProduct.taille}</span>

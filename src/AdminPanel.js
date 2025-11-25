@@ -106,9 +106,9 @@ const AdminPanel = ({ onLogout }) => {
           if (!Number.isNaN(num)) out.prix_vente = num;
         }
 
-      if (out.reference !== undefined && out.reference !== null) {
-        out.reference = String(out.reference).trim();
-      }
+        if (out.reference !== undefined && out.reference !== null) {
+          out.reference = String(out.reference).trim();
+        }
 
         return out;
       };
