@@ -297,7 +297,7 @@ const LuxuryProductSearch = () => {
                         </div>
                         {product.reference && (
                           <p className="text-xs text-gray-500 mt-2">
-                            识别码: {product.reference}
+                            型号: {product.reference}
                           </p>
                         )}
                         {product.Link && (
@@ -367,7 +367,7 @@ const LuxuryProductSearch = () => {
                   </div>
                   {product.reference && (
                     <p className="text-xs text-gray-500 mt-2">
-                      识别码: {product.reference}
+                      型号: {product.reference}
                     </p>
                   )}
                   {product.Link && (
@@ -455,13 +455,13 @@ const LuxuryProductSearch = () => {
                     )}
                     {selectedProduct.reference && (
                       <div className="flex border-b pb-2">
-                        <span className="font-semibold w-32">识别码:</span>
+                        <span className="font-semibold w-32">型号:</span>
                         <span>{selectedProduct.reference}</span>
                       </div>
                     )}
                     {selectedProduct.designation && (
                       <div className="flex border-b pb-2">
-                        <span className="font-semibold w-32">型号:</span>
+                        <span className="font-semibold w-32">产品描述:</span>
                         <span>{selectedProduct.designation}</span>
                       </div>
                     )}
@@ -512,7 +512,7 @@ const LuxuryProductSearch = () => {
                     )}
                     {selectedProduct.Rayon && (
                       <div className="flex border-b pb-2">
-                        <span className="font-semibold w-32">部门:</span>
+                        <span className="font-semibold w-32">性别:</span>
                         <span>{selectedProduct.Rayon}</span>
                       </div>
                     )}
