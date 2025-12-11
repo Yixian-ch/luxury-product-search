@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
 const { pipeline } = require('stream/promises');
+const OpenAI = require('openai');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -12,6 +13,8 @@ const REMOTE_DATA_BEARER = process.env.PRODUCTS_DATA_BEARER || process.env.HF_DA
 const HAS_GLOBAL_FETCH = typeof fetch === 'function';
 // Admin key for protecting write endpoints. Set ADMIN_KEY in environment for production.
 const ADMIN_KEY = process.env.ADMIN_KEY || 'dev-secret';
+const DEEPSEEK_KEY = process.env.Deepseek_API_KEY || process.env.DEEPSEEK_API_KEY || '';
+const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
 
 // Ensure data directory exists
 const dataDir = path.dirname(DATA_FILE);
@@ -46,6 +49,100 @@ async function ensureDataFile() {
     console.log('Products data downloaded to', DATA_FILE);
   } catch (error) {
     console.error('Failed to download products data:', error);
+  }
+}
+
+function buildDeepseekClient() {
+  if (!DEEPSEEK_KEY) return null;
+  try {
+    return new OpenAI({
+      apiKey: DEEPSEEK_KEY,
+      baseURL: DEEPSEEK_BASE_URL,
+    });
+  } catch (e) {
+    console.error('初始化 DeepSeek 客户端失败:', e);
+    return null;
+  }
+}
+
+const deepseekClient = buildDeepseekClient();
+
+async function classifyIntent(rawQuery) {
+  if (!deepseekClient) {
+    return { intent: 'query_price', hint: rawQuery || '', message: '' };
+  }
+  try {
+    const prompt = [
+      {
+        role: 'system',
+        content: [
+          '你是意图分类器，请输出 JSON，不要输出其他内容。',
+          '字段: intent (query_price/chat/other), hint (提取的商品名称或参考号，若无则空字符串), message (非查价时给用户的简短中文回复)。',
+          '如果用户只是问候/闲聊/无商品信息，则 intent=chat，hint 空，message 提示“请提供商品名称或参考号”。',
+          '如果用户明显是查价格，intent=query_price，hint 里放可能的商品名或参考号（可原样）。',
+          '不可编造商品或价格。',
+        ].join('\n'),
+      },
+      { role: 'user', content: rawQuery || '' },
+    ];
+
+    const resp = await deepseekClient.chat.completions.create({
+      model: 'deepseek-chat',
+      temperature: 0,
+      messages: prompt,
+      response_format: { type: 'json_object' },
+    });
+
+    const text = resp?.choices?.[0]?.message?.content || '';
+    const parsed = JSON.parse(text);
+    return {
+      intent: parsed.intent || 'query_price',
+      hint: parsed.hint || rawQuery || '',
+      message: parsed.message || '',
+    };
+  } catch (e) {
+    console.error('意图分类失败，回退为查价:', e?.message || e);
+    return { intent: 'query_price', hint: rawQuery || '', message: '' };
+  }
+}
+
+async function askDeepseek({ productName, price, reference, query, matched }) {
+  if (!deepseekClient) return null;
+  try {
+    const prompt = [
+      {
+        role: 'system',
+        content: [
+          '你是 Feel 智能助手，请始终用中文、简短回答。',
+          '先判断用户意图：如果只是打招呼/闲聊/无商品信息，则礼貌回复并提示“请提供商品名称或参考号”，不要编造价格。',
+          '如果明确是查价且有匹配商品和价格，格式固定：您好，我是Feel智能助手，您查询的{商品}价格为{价格}。',
+          '如果想查价但缺少商品信息或未匹配到/没有价格，回答：不知道。',
+          '不要杜撰商品或价格。',
+        ].join('\n'),
+      },
+      {
+        role: 'user',
+        content: [
+          `原始查询: ${query || ''}`,
+          `匹配到的商品: ${productName || '无'}`,
+          `参考号: ${reference || '无'}`,
+          `价格: ${price || '未知'}`,
+          `是否匹配到商品: ${matched ? '是' : '否'}`,
+        ].join('\n'),
+      },
+    ];
+
+    const resp = await deepseekClient.chat.completions.create({
+      model: 'deepseek-chat',
+      temperature: 0.1,
+      messages: prompt,
+    });
+
+    const msg = resp?.choices?.[0]?.message?.content;
+    return (msg || '').toString().trim();
+  } catch (e) {
+    console.error('调用 DeepSeek 失败:', e?.message || e);
+    return null;
   }
 }
 
@@ -245,6 +342,81 @@ app.delete('/api/brands/:brand', (req, res) => {
 
   console.log(`删除品牌 "${brand}" 项目数量:`, removed, '剩余总量:', remaining.length);
   res.json({ ok: true, removed, total: remaining.length });
+});
+
+// Simple agent endpoint: query by name/reference and respond with price
+app.post('/api/agent', async (req, res) => {
+  const body = req.body || {};
+  const rawQuery = (body.query || '').toString().trim();
+  if (!rawQuery) {
+    return res.status(400).json({ error: 'query_required' });
+  }
+
+  const intentResult = await classifyIntent(rawQuery);
+  const intent = intentResult.intent || 'query_price';
+  const hint = (intentResult.hint || rawQuery).toString().trim();
+  const intentMessage = intentResult.message || '';
+
+  // 如果不是查价，直接用意图回复（或友好提示）
+  if (intent !== 'query_price') {
+    const message = intentMessage || '请提供商品名称或参考号，我将为您查询价格。';
+    return res.json({ message, intent });
+  }
+
+  const products = readProducts();
+  const lookupQuery = hint.toLowerCase();
+  let matched = null;
+
+  for (const item of products) {
+    const ref = (item.reference || '').toString().trim().toLowerCase();
+    const name = (
+      item.produit ||
+      item.designation ||
+      ''
+    ).toString().trim().toLowerCase();
+
+    if (!ref && !name) continue;
+
+    const refHit =
+      ref &&
+      (lookupQuery === ref || ref.includes(lookupQuery) || lookupQuery.includes(ref));
+
+    const nameHit =
+      name &&
+      lookupQuery.length >= 3 &&
+      name.includes(lookupQuery);
+
+    if (refHit || nameHit) {
+      matched = item;
+      break;
+    }
+  }
+
+  const productName = matched
+    ? (matched.produit || matched.designation || matched.reference || '该商品').toString()
+    : '';
+  const price = matched
+    ? (matched.prix_vente ?? matched.prix_achat ?? '未知')
+    : '未知';
+  const reference = matched ? (matched.reference || '') : '';
+
+  // 查价时调用 DeepSeek，失败时回退
+  askDeepseek({ productName, price, reference, query: rawQuery, matched: Boolean(matched) })
+    .then((reply) => {
+      const message =
+        (reply && reply.trim()) ||
+        (matched
+          ? `您好，我是Feel智能助手，您查询的${productName}价格为${price}欧元`
+          : '不知道');
+      res.json({ message, product: productName, price, reference, matched: Boolean(matched), intent });
+    })
+    .catch((err) => {
+      console.error('agent 回复失败，使用本地回退:', err);
+      const message = matched
+        ? `您好，我是Feel智能助手，您查询的${productName}价格为${price}`
+        : '不知道';
+      res.json({ message, product: productName, price, reference, matched: Boolean(matched), intent });
+    });
 });
 
 // 错误处理中间件（必须在所有路由之后）

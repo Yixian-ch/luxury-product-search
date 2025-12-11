@@ -24,3 +24,5 @@ yarn-error.log*
 # data backups
 server/data/products.backup-*.json
 server/data/products.json
+server/data/*.json
+server/data

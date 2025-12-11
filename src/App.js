@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import LuxuryProductSearch from './LuxuryProductSearch';
 import AdminPanel from './AdminPanel';
+import AgentChatModal from './AgentChatModal';
 
 function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [promptAttempted, setPromptAttempted] = useState(false);
+  const [showAgent, setShowAgent] = useState(false);
 
   const isBrowser = typeof window !== 'undefined';
   const isAdminRoute = useMemo(() => {
@@ -45,7 +47,19 @@ function App() {
 
   // Admin Panel View
   if (isAdmin) {
-    return <AdminPanel onLogout={handleAdminLogout} />;
+    return (
+      <>
+        <AdminPanel onLogout={handleAdminLogout} />
+        <button
+          onClick={() => setShowAgent(true)}
+          className="fixed bottom-6 right-6 z-40 px-4 py-3 rounded-full bg-black text-white shadow-lg hover:bg-gray-900 transition"
+          aria-label="打开聊天助手"
+        >
+          聊天助手
+        </button>
+        <AgentChatModal open={showAgent} onClose={() => setShowAgent(false)} />
+      </>
+    );
   }
 
   if (isAdminRoute) {
@@ -75,7 +89,7 @@ function App() {
     );
   }
 
-  // Regular User View
+  // Regular User View (chat助手隐藏)
   return <LuxuryProductSearch />;
 }
 

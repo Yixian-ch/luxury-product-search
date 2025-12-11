@@ -169,12 +169,12 @@ const LuxuryProductSearch = () => {
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">奢侈品价格查询系统</h1>
+            <h1 className="text-2xl font-bold text-gray-900">FeeL奢侈品价格查询系统</h1>
           </div>
           <p className="mt-2 text-sm text-gray-600 leading-relaxed">
             本网站为非营利性质的公开信息分享平台，所有数据仅供参考学习与市场研究，不构成任何形式的交易撮合或商业承诺。若需购买或获取产品，请以品牌官方网站及授权渠道公布的信息为准。
           </p>
-          <p className="mt-2 text-xs text-gray-500">价格数据最后更新：2025 年 10 月 1 日</p>
+          <p className="mt-2 text-xs text-gray-500">价格更新日期：2025 年 10 月 1 日</p>
         </div>
       </header>
 
@@ -257,23 +257,23 @@ const LuxuryProductSearch = () => {
                   {items.map((product, index) => {
                     const imageUrl = getProductImageUrl(product);
                     return (
-                      <div
-                        key={`${brand}-${index}`}
-                        className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition cursor-pointer"
-                        onClick={() => setSelectedProduct(product)}
-                      >
-                        <div className="aspect-square bg-gray-100 relative">
+                    <div
+                      key={`${brand}-${index}`}
+                      className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition cursor-pointer"
+                      onClick={() => setSelectedProduct(product)}
+                    >
+                      <div className="aspect-square bg-gray-100 relative">
                           {imageUrl ? (
-                            <img
+                          <img
                               src={imageUrl}
                               alt={product.produit || '商品图片'}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.nextSibling.style.display = 'flex';
-                              }}
-                            />
-                          ) : null}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
                         <div className="absolute inset-0 flex items-center justify-center text-gray-400">
                           <Package size={48} />
                         </div>
@@ -325,24 +325,24 @@ const LuxuryProductSearch = () => {
               {pagedProducts.map((product, index) => {
                 const imageUrl = getProductImageUrl(product);
                 return (
-                <div
-                  key={index}
-                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition cursor-pointer"
-                  onClick={() => setSelectedProduct(product)}
-                >
-                  <div className="aspect-square bg-gray-100 relative">
+              <div
+                key={index}
+                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition cursor-pointer"
+                onClick={() => setSelectedProduct(product)}
+              >
+                <div className="aspect-square bg-gray-100 relative">
                     {imageUrl ? (
-                      <img
+                    <img
                         src={imageUrl}
-                        alt={product.produit || '商品图片'}
-                        loading="lazy"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
-                        }}
-                      />
-                    ) : null}
+                      alt={product.produit || '商品图片'}
+                      loading="lazy"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
                   <div className="absolute inset-0 flex items-center justify-center text-gray-400">
                     <Package size={48} />
                   </div>

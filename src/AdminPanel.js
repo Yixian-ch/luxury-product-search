@@ -427,16 +427,16 @@ const AdminPanel = ({ onLogout }) => {
         <div className="mt-8 bg-white rounded-lg shadow-md p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-4">
             <div>
-              <h2 className="text-xl font-bold">商品管理</h2>
+            <h2 className="text-xl font-bold">商品管理</h2>
               <p className="text-sm text-gray-500 mt-1">支持搜索、单条编辑以及批量删除品牌</p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="搜索 reference / 名称 / 品牌"
-                className="border rounded px-3 py-2"
-              />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="搜索 reference / 名称 / 品牌"
+              className="border rounded px-3 py-2"
+            />
               <div className="flex items-center gap-2">
                 <select
                   value={brandToDelete}
