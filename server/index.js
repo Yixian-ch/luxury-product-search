@@ -894,6 +894,28 @@ app.post('/api/agent', async (req, res) => {
   // 🔧 输入预处理
   const cleanedQuery = preprocessQuery(rawQuery);
   console.log(`${logPrefix} 预处理后: "${cleanedQuery}"`);
+
+  // 🏢 检测是否询问 Feel Europe 介绍
+  const aboutFeelKeywords = ['feel europe', 'feel-europe', 'feeleurope', '介绍feel', 'feel介绍', '什么是feel', 'feel是什么', 'about feel', '关于feel',"你自己"];
+  const lowerQuery = cleanedQuery.toLowerCase();
+  const isAboutFeel = aboutFeelKeywords.some(kw => lowerQuery.includes(kw));
+  
+  if (isAboutFeel) {
+    console.log(`${logPrefix} ✅ 检测到 Feel Europe 介绍请求`);
+    const feelIntro = [
+      '**关于 Feel Europe**',
+      '',
+      'Chez Feel Europe, nous incarnons l\'excellence dans chaque détail. Depuis plus de 10 ans, nous mettons à votre disposition des articles d\'exception pour sublimer votre style et votre quotidien. Découvrez un univers où le raffinement rencontre l\'élégance, où chaque produit raconte une histoire de perfection.',
+      '',
+      '',
+      '在 Feel Europe，我们在每一个细节中追求卓越。十余年来，我们为您提供非凡的精品，提升您的品味与日常生活品质。在这里，您将发现一个精致与优雅交融的世界，每一件产品都诉说着完美的故事。'
+    ].join('\n');
+    
+    return res.json({
+      message: feelIntro,
+      intent: 'about_feel'
+    });
+  }
   
   // 🔧 品牌名标准化
   const normalizedQuery = normalizeBrandInQuery(cleanedQuery);
