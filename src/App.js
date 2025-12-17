@@ -63,7 +63,7 @@ function App() {
   }
 
   if (isAdminRoute) {
-    return (
+  return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white shadow-xl rounded-2xl p-8 space-y-4 text-center border border-gray-100">
           <h1 className="text-2xl font-bold text-gray-900">管理员入口</h1>
@@ -71,12 +71,12 @@ function App() {
             这是一个隐藏的管理界面入口。请输入管理员密钥以继续。如果您不是授权管理员，可点击下方按钮返回首页。
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              onClick={handleAdminLogin}
+      <button
+        onClick={handleAdminLogin}
               className="px-4 py-2 rounded-lg bg-black text-white font-medium hover:bg-gray-900 transition"
-            >
+      >
               输入管理员密钥
-            </button>
+      </button>
             <a
               href="/"
               className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
@@ -85,8 +85,8 @@ function App() {
             </a>
           </div>
         </div>
-      </div>
-    );
+    </div>
+  );
   }
 
   // Regular User View (chat助手隐藏)

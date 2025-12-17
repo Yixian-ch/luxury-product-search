@@ -156,7 +156,7 @@ const LuxuryProductSearch = () => {
   const getProductImageUrl = (item) => {
     if (!item) return '';
     const candidates = [
-      item.lien_externe,
+      item.img_url,        // 图片链接
       item.image_url,
       item.image,
       item.photo,
