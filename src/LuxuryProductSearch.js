@@ -342,7 +342,7 @@ const LuxuryProductSearch = () => {
 
   const formatPrice = (price) => {
     if (!price) return 'N/A';
-    return `€${Number(price).toLocaleString('fr-FR')}`;
+    return `${Number(price).toLocaleString('fr-FR')}€`;
   };
 
   const productGridClassName = useMemo(() => {
@@ -450,7 +450,7 @@ const LuxuryProductSearch = () => {
                       className="lux-tile cursor-pointer transition hover:-translate-y-0.5"
                       onClick={() => setSelectedProduct(product)}
                     >
-                      <div className="aspect-square bg-ink-100 relative">
+                      <div className="aspect-square relative">
                           {imageUrl ? (
                           <img
                               src={imageUrl}
@@ -458,13 +458,9 @@ const LuxuryProductSearch = () => {
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               e.target.style.display = 'none';
-                              e.target.nextSibling.style.display = 'flex';
                             }}
                           />
                         ) : null}
-                        <div className="absolute inset-0 flex items-center justify-center text-ink-400">
-                          <Package size={48} />
-                        </div>
                       </div>
                       <div className="p-5">
                         <h3 className="font-medium text-lg text-ink-900 mb-1 line-clamp-2">
@@ -518,7 +514,7 @@ const LuxuryProductSearch = () => {
                 className="lux-tile cursor-pointer transition hover:-translate-y-0.5"
                 onClick={() => setSelectedProduct(product)}
               >
-                <div className="aspect-square bg-ink-100 relative">
+                <div className="aspect-square relative">
                     {imageUrl ? (
                     <img
                         src={imageUrl}
@@ -527,13 +523,9 @@ const LuxuryProductSearch = () => {
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
                       }}
                     />
                   ) : null}
-                  <div className="absolute inset-0 flex items-center justify-center text-ink-400">
-                    <Package size={48} />
-                  </div>
                 </div>
 
                 <div className="p-5">
@@ -611,7 +603,7 @@ const LuxuryProductSearch = () => {
 
             <div className="p-6">
               <div className="grid md:grid-cols-2 gap-6">
-                <div className="aspect-square bg-ink-100 rounded-2xl overflow-hidden relative border border-ink-200">
+                <div className="aspect-square rounded-2xl overflow-hidden relative border border-ink-200">
                   {getProductImageUrl(selectedProduct) ? (
                     <img
                       src={getProductImageUrl(selectedProduct)}
@@ -620,13 +612,9 @@ const LuxuryProductSearch = () => {
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
                       }}
                     />
                   ) : null}
-                  <div className="absolute inset-0 flex items-center justify-center text-ink-400">
-                    <Package size={80} />
-                  </div>
                 </div>
 
                 <div>
@@ -667,7 +655,7 @@ const LuxuryProductSearch = () => {
                           {selectedSizes.map((size) => (
                             <span
                               key={size}
-                              className="px-3 py-1 text-xs font-medium bg-ink-100 text-ink-700 rounded-full border border-ink-200"
+                              className="px-3 py-1 text-xs font-medium text-ink-700 rounded-full border border-ink-200"
                             >
                               {size}
                             </span>
