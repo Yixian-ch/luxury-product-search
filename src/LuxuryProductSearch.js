@@ -183,14 +183,57 @@ const LuxuryProductSearch = () => {
     return 'ACCESSORIES';
   }, []);
 
+  // 将规范化后的Famille字段值映射到分类代码
+  const mapFamilleToCategory = useCallback((famille) => {
+    if (!famille || typeof famille !== 'string') return null;
+    
+    const familleLower = famille.toLowerCase().trim();
+    
+    // 包袋类
+    if (familleLower === 'sacs') {
+      return 'BAGS';
+    }
+    
+    // 成衣类
+    if (familleLower === 'vêtements') {
+      return 'RTW';
+    }
+    
+    // 鞋履类
+    if (familleLower === 'chaussures') {
+      return 'SHOES';
+    }
+    
+    // 珠宝类
+    if (familleLower === 'bijoux') {
+      return 'JEWELRY';
+    }
+    
+    // 配饰类
+    if (familleLower === 'accessoires') {
+      return 'ACCESSORIES';
+    }
+    
+    return null;
+  }, []);
+
   const getCategory = useCallback((product) => {
     const cache = categoryCacheRef.current;
     const hit = cache.get(product);
     if (hit) return hit;
+    
+    // 优先使用规范化后的Famille字段进行分类
+    const familleCategory = mapFamilleToCategory(product?.Famille);
+    if (familleCategory) {
+      cache.set(product, familleCategory);
+      return familleCategory;
+    }
+    
+    // 如果Famille字段无法映射，则使用inferCategory作为后备
     const computed = inferCategory(product);
     cache.set(product, computed);
     return computed;
-  }, [inferCategory]);
+  }, [inferCategory, mapFamilleToCategory]);
 
   const parseSizes = (value) => {
     if (!value && value !== 0) return [];

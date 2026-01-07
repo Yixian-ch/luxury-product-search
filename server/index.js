@@ -157,6 +157,101 @@ const BRAND_ALIASES = {
   '斐登': 'fred',
 };
 
+// Famille字段规范化映射：将所有变体统一为标准值
+const FAMILLE_NORMALIZATION_MAP = {
+  // 包袋类 - 统一为 "Sacs"
+  'sacs': 'Sacs',
+  'sac': 'Sacs',
+  'sacs à main': 'Sacs',
+  'mini-sacs': 'Sacs',
+  'petite-maroquinerie': 'Sacs',
+  'petite maroquinerie': 'Sacs',
+  'portefeuilles': 'Sacs',
+  'portefeuilles-et-petite-maroquinerie': 'Sacs',
+  'portefeuilles & petite maroquinerie': 'Sacs',
+  'portefeuilles & porte-cartes': 'Sacs',
+  'bagages': 'Sacs',
+  'sacs et chaussures': 'Sacs', // 混合类别，优先归为包袋
+  
+  // 成衣类 - 统一为 "Vêtements"
+  'vêtements': 'Vêtements',
+  'vêtements d\'extérieur': 'Vêtements',
+  'pret-a-porter': 'Vêtements',
+  'prêt-à-porter': 'Vêtements',
+  'prêt-a-porter': 'Vêtements',
+  'pret-a-porter-homme': 'Vêtements',
+  'manteaux': 'Vêtements',
+  'manteaux & vestes': 'Vêtements',
+  'femme': 'Vêtements',
+  'homme': 'Vêtements',
+  
+  // 鞋履类 - 统一为 "Chaussures"
+  'chaussures': 'Chaussures',
+  'souliers': 'Chaussures',
+  'chaussures & accessoires': 'Chaussures',
+  
+  // 珠宝类 - 统一为 "Bijoux"
+  'bijoux': 'Bijoux',
+  'bijoux en argent': 'Bijoux',
+  'bijoux fantaisie': 'Bijoux',
+  
+  // 配饰类 - 统一为 "Accessoires"
+  'accessoires': 'Accessoires',
+  'autres-lignes': 'Accessoires',
+  
+  // 特殊类别 - 统一归为 "Accessoires"
+  'moncler genius': 'Accessoires',
+  'moncler grenoble pour femme': 'Accessoires',
+  'moncler grenoble pour homme': 'Accessoires',
+  'collections': 'Accessoires',
+  'cadeaux': 'Accessoires',
+  'à la une': 'Accessoires',
+  'mode été': 'Accessoires',
+  'bébé garçons 3 à 36 mois': 'Accessoires',
+};
+
+/**
+ * 规范化Famille字段：将各种变体统一为标准值
+ */
+function normalizeFamille(famille) {
+  if (!famille || typeof famille !== 'string') {
+    return '';
+  }
+  
+  const trimmed = famille.trim();
+  if (!trimmed) {
+    return '';
+  }
+  
+  // 转换为小写进行匹配（不区分大小写）
+  const lowerKey = trimmed.toLowerCase();
+  
+  // 直接匹配
+  if (FAMILLE_NORMALIZATION_MAP[lowerKey]) {
+    return FAMILLE_NORMALIZATION_MAP[lowerKey];
+  }
+  
+  // 部分匹配（包含关键词）
+  if (lowerKey.includes('sac') || lowerKey.includes('maroquinerie') || lowerKey.includes('portefeuille') || lowerKey.includes('bagage')) {
+    return 'Sacs';
+  }
+  if (lowerKey.includes('vêtement') || lowerKey.includes('pret-a-porter') || lowerKey.includes('prêt') || lowerKey.includes('manteau')) {
+    return 'Vêtements';
+  }
+  if (lowerKey.includes('chaussure') || lowerKey.includes('souliers')) {
+    return 'Chaussures';
+  }
+  if (lowerKey.includes('bijou')) {
+    return 'Bijoux';
+  }
+  if (lowerKey.includes('accessoire')) {
+    return 'Accessoires';
+  }
+  
+  // 如果无法匹配，返回原始值（首字母大写）
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+}
+
 // 商品类型关键词映射（中文 -> 多语言搜索词）
 const PRODUCT_TYPE_MAP = {
   // 服装类
@@ -753,7 +848,12 @@ app.use(express.json({ limit: '10mb' }));
 function readProducts() {
   try {
     const raw = fs.readFileSync(DATA_FILE, 'utf8');
-    return JSON.parse(raw || '[]');
+    const products = JSON.parse(raw || '[]');
+    // 规范化Famille字段
+    return products.map(product => ({
+      ...product,
+      Famille: normalizeFamille(product.Famille),
+    }));
   } catch (e) {
     console.warn('readProducts error', e);
     return [];
@@ -776,13 +876,10 @@ app.get('/api/products', (req, res) => {
     return res.json([]);
   }
 
+  // 使用readProducts函数，它会自动规范化Famille字段
+  const products = readProducts();
   res.setHeader('Content-Type', 'application/json');
-  const stream = fs.createReadStream(DATA_FILE);
-  stream.on('error', (err) => {
-    console.error('Stream read error:', err);
-    res.status(500).json({ error: 'Failed to read products data' });
-  });
-  stream.pipe(res);
+  res.json(products);
 });
 
 // Replace all products (used after upload/import)
@@ -824,6 +921,7 @@ app.post('/api/products', (req, res) => {
       preparedItems.push({
         ...item,
         reference: ref,
+        Famille: normalizeFamille(item.Famille), // 规范化Famille字段
       });
     }
 
@@ -897,9 +995,16 @@ app.patch('/api/products/:reference', (req, res) => {
   if (sanitized.lien_externe !== undefined) {
     sanitized.lien_externe = String(sanitized.lien_externe);
   }
+  if (sanitized.Famille !== undefined) {
+    sanitized.Famille = normalizeFamille(sanitized.Famille);
+  }
 
   const before = items[idx];
   const after = { ...before, ...sanitized };
+  // 确保Famille字段也被规范化（即使没有在updates中）
+  if (after.Famille) {
+    after.Famille = normalizeFamille(after.Famille);
+  }
   items[idx] = after;
   const ok = writeProducts(items);
   if (!ok) return res.status(500).json({ error: 'Failed to save products' });
@@ -943,6 +1048,51 @@ app.delete('/api/brands/:brand', (req, res) => {
 
   console.log(`删除品牌 "${brand}" 项目数量:`, removed, '剩余总量:', remaining.length);
   res.json({ ok: true, removed, total: remaining.length });
+});
+
+// Normalize all Famille fields in existing products
+app.post('/api/normalize-famille', (req, res) => {
+  const headerKey = req.headers['x-admin-key'] || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+  if (!headerKey || headerKey !== ADMIN_KEY) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+
+  try {
+    // 直接读取原始文件（不经过readProducts，避免双重规范化）
+    const raw = fs.readFileSync(DATA_FILE, 'utf8');
+    const products = JSON.parse(raw || '[]');
+    
+    let normalizedCount = 0;
+    const normalizedProducts = products.map((product) => {
+      const originalFamille = product.Famille || '';
+      const normalizedFamille = normalizeFamille(originalFamille);
+      
+      if (originalFamille !== normalizedFamille) {
+        normalizedCount += 1;
+      }
+      
+      return {
+        ...product,
+        Famille: normalizedFamille,
+      };
+    });
+
+    const ok = writeProducts(normalizedProducts);
+    if (!ok) {
+      return res.status(500).json({ error: 'Failed to save normalized products' });
+    }
+
+    console.log(`规范化完成: 更新了 ${normalizedCount} 个商品的Famille字段，总计 ${normalizedProducts.length} 个商品`);
+    res.json({ 
+      ok: true, 
+      normalized: normalizedCount, 
+      total: normalizedProducts.length,
+      message: `成功规范化 ${normalizedCount} 个商品的Famille字段`
+    });
+  } catch (error) {
+    console.error('规范化Famille字段时出错:', error);
+    res.status(500).json({ error: 'Internal server error', message: error.message });
+  }
 });
 
 // Simple agent endpoint: query by name/reference and respond with price
