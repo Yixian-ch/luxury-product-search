@@ -569,96 +569,174 @@ async function searchOnline(query) {
   }
 }
 
-async function askDeepseek({ productName, price, reference, query, matched, onlineResults, brand, link }) {
+function normalizeAgentMessages(input) {
+  if (!Array.isArray(input)) return [];
+  const out = [];
+  for (const item of input) {
+    if (!item || typeof item !== 'object') continue;
+    const roleRaw = item.role;
+    const contentRaw = item.content;
+    const role = roleRaw === 'user' || roleRaw === 'assistant' ? roleRaw : null;
+    const content = typeof contentRaw === 'string' ? contentRaw : null;
+    if (!role || !content) continue;
+    out.push({ role, content: content.trim() });
+  }
+  return out.filter((m) => m.content);
+}
+
+function pickRecentMessages(messages, maxCount) {
+  if (!Array.isArray(messages) || messages.length === 0) return [];
+  const start = Math.max(0, messages.length - maxCount);
+  return messages.slice(start);
+}
+
+function buildLuxuryAssistantSystemPrompt() {
+  return [
+    '你是 Feel 智能助手：一位资深奢侈品顾问/私人买手助理。语气要像精品店顾问：克制、专业、自然，不要客服模板腔。',
+    '你只使用系统提供的本地数据库信息（candidates）和在线搜索摘要（onlineResults）来回答，绝不杜撰商品/价格/链接/库存。',
+    '输出风格：尽量短句+自然口吻；除非用户要求，不要写长篇“为了给您提供最准确的信息……”这类套话。',
+    '提问策略：只问 1 个最关键的问题（最多 1 个）。优先用“二选一/三选一”让用户快速确认，不要连续列 3-5 个问题。',
+    '场景处理：',
+    '- 若本地候选里有高置信度命中：直接给结果（名称/参考号/价格/链接），并补充一句“需要我帮你对比其他尺寸/材质吗？”。',
+    '- 若本地只命中到相近但疑似不是同一类（例如命中配件但用户问包）：先用一句话说明你看到的候选是什么，并用一个问题确认用户要找的品类/尺寸。',
+    '- 若本地未命中：明确说“本地库里没有”，然后基于 onlineResults 给出能确认的要点，并问 1 个问题（例如尺寸/材质/地区）以便继续检索。',
+    '价格规则：只在信息中出现明确价格/币种/来源时才输出数字；如果 onlineResults 没有明确价格，不要给“区间估价/大概范围/历史价格”。',
+    '链接规则：优先给官网/权威来源链接；若链接不完整或不确定，就不要强行拼接。',
+    '默认币种为欧元（€）；仅在需要换算时再问用户目标币种。',
+    '必要时用 **加粗** 强调关键字段（商品名/参考号/价格）。',
+  ].join('\n');
+}
+
+function extractPriceEvidence(onlineResults) {
+  if (!onlineResults) return [];
+  const text = String(onlineResults);
+  const lines = text
+    .split(/\r?\n/g)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const hitLines = [];
+  const priceRegex = /(€\s?\d{1,3}(?:[\s,\.]\d{3})*(?:[\.,]\d{1,2})?)|(\d{1,3}(?:[\s,\.]\d{3})*(?:[\.,]\d{1,2})?\s?€)|(\$\s?\d{1,3}(?:[\s,\.]\d{3})*(?:[\.,]\d{1,2})?)|(£\s?\d{1,3}(?:[\s,\.]\d{3})*(?:[\.,]\d{1,2})?)|(\bRMB\b|\bCNY\b|人民币|元)\s?\d+/i;
+
+  for (const line of lines) {
+    if (priceRegex.test(line)) {
+      hitLines.push(line);
+      if (hitLines.length >= 8) break;
+    }
+  }
+
+  // 去重并限制长度
+  const uniq = [];
+  for (const l of hitLines) {
+    if (uniq.includes(l)) continue;
+    uniq.push(l.length > 220 ? `${l.slice(0, 220)}...` : l);
+  }
+  return uniq;
+}
+
+function tokenizeText(value) {
+  if (!value) return [];
+  return String(value)
+    .toLowerCase()
+    .trim()
+    .split(/[^a-z0-9\u4e00-\u9fa5]+/g)
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+function scoreProductForQuery(item, query) {
+  const q = (query || '').toString().trim().toLowerCase();
+  if (!q) return 0;
+  const ref = (item?.reference || '').toString().trim().toLowerCase();
+  const name = (item?.produit || item?.designation || '').toString().trim().toLowerCase();
+  const brand = (item?.marque || '').toString().trim().toLowerCase();
+
+  let score = 0;
+  if (ref) {
+    if (q === ref) score += 120;
+    else if (ref.includes(q) || q.includes(ref)) score += 80;
+  }
+  if (name) {
+    if (q === name) score += 70;
+    else if (q.length >= 3 && name.includes(q)) score += 45;
+  }
+  if (brand && (q === brand || q.includes(brand))) score += 15;
+
+  const qTokens = tokenizeText(q);
+  if (qTokens.length > 0) {
+    const hay = `${ref} ${name} ${brand} ${(item?.designation || '').toString().toLowerCase()}`;
+    let hits = 0;
+    for (const t of qTokens) {
+      if (t.length < 2) continue;
+      if (hay.includes(t)) hits += 1;
+    }
+    score += Math.min(25, hits * 5);
+  }
+
+  return score;
+}
+
+function findTopProductCandidates(products, query, limit = 5) {
+  const items = Array.isArray(products) ? products : [];
+  const scored = [];
+  for (const item of items) {
+    const score = scoreProductForQuery(item, query);
+    if (score <= 0) continue;
+    scored.push({ score, item });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, limit);
+}
+
+function toCandidateBrief(scored) {
+  return scored.map((entry) => {
+    const item = entry.item || {};
+    return {
+      score: entry.score,
+      produit: item.produit || item.designation || '',
+      marque: item.marque || '',
+      reference: item.reference || '',
+      prix_vente: item.prix_vente ?? item.prix_achat ?? '',
+      lien_externe: item.lien_externe || '',
+      img_url: item.img_url || item.image_url || '',
+    };
+  });
+}
+
+async function askDeepseekChat({ history, userQuery, intent, candidates, onlineResults }) {
   if (!deepseekClient) return null;
   try {
-    const systemContent = onlineResults
-      ? [
-          '你是 Feel 智能助手，一位专业的奢侈品顾问。请用中文回答，语气专业、友好、有温度。',
-          '',
-          '【角色定位】',
-          '你是用户的私人奢侈品顾问，帮助他们了解品牌新品和时尚资讯。',
-          '',
-          '【回复格式】',
-          '1. 开头用一句话热情回应，说明找到了什么',
-          '2. 为每个商品提供：',
-          '   **商品名称**',
-          '   简洁描述（1-2句，突出亮点/特色）',
-          '   🔗 链接地址',
-          '',
-          '3. 结尾可以添加一句贴心建议或邀请继续咨询',
-          '',
-          '【注意事项】',
-          '- 保持专业但不失亲切的语气',
-          '- 链接必须完整（https://开头），单独成行',
-          '- 如果有价格信息，务必提取并告知',
-          '- 如搜索结果包含"未配置"、"失败"、"错误"、"未找到"，礼貌回复：',
-          '  "很抱歉，在线搜索暂时无法获取结果。建议您直接访问品牌官方网站查看最新商品，如有其他问题随时问我～"',
-          '- 绝不杜撰信息',
-        ].join('\n')
-      : [
-          '你是 Feel 智能助手，一位专业的奢侈品顾问。请用中文回答，语气专业、友好。',
-          '',
-          '【回复规则】',
-          '1. 如果匹配到商品且有价格和链接：',
-          '   "您好！为您查询到 **{商品名}**',
-          '   💰 价格：{价格}€',
-          '   📦 参考号：{参考号}',
-          '   🔗 {链接地址}',
-          '   如有其他问题随时问我～"',
-          '',
-          '2. 如果匹配到商品但没有链接：',
-          '   "您好！为您查询到 **{商品名}**',
-          '   💰 价格：{价格}€',
-          '   📦 参考号：{参考号}',
-          '   如需查看官网详情，可以说"在线查询{品牌}{商品}"～"',
-          '',
-          '3. 如果未匹配到商品：',
-          '   "抱歉，暂未在数据库中找到相关商品',
-          '   您可以：',
-          '   • 检查商品名称或编号是否正确',
-          '   • 尝试说"在线查询{品牌}{商品}"搜索官网',
-          '   有其他问题随时问我～"',
-          '',
-          '【注意】',
-          '- 绝不杜撰商品或价格',
-          '- 价格单位是欧元（€）',
-          '- 如果有链接，必须完整显示（https://开头），单独成行',
-          '- 保持友好专业的语气',
-        ].join('\n');
+    const safeHistory = pickRecentMessages(normalizeAgentMessages(history), 12);
+    const systemPrompt = buildLuxuryAssistantSystemPrompt();
+    const priceEvidence = extractPriceEvidence(onlineResults);
+    const contextPayload = {
+      intent: intent || 'unknown',
+      query: userQuery || '',
+      candidates: Array.isArray(candidates) ? candidates : [],
+      onlineResults: onlineResults ? String(onlineResults).slice(0, 6000) : '',
+      priceEvidence,
+    };
 
-    const userContent = onlineResults
-      ? [
-          `用户想查询: ${query || ''}`,
-          '',
-          `在线搜索结果:`,
-          onlineResults,
-        ].join('\n')
-      : [
-          `用户查询: ${query || ''}`,
-          `商品名称: ${productName || '无'}`,
-          `参考号: ${reference || '无'}`,
-          `价格: ${price || '未知'}`,
-          `品牌: ${brand || '未知'}`,
-          `商品链接: ${link || '无'}`,
-          `是否匹配到商品: ${matched ? '是' : '否'}`,
-        ].join('\n');
-
-    const prompt = [
+    const messages = [
+      { role: 'system', content: systemPrompt },
       {
         role: 'system',
-        content: systemContent,
+        content:
+          '额外硬性规则：如果 priceEvidence 为空，严禁输出任何具体价格数字（也不要输出价格区间/估价）。需要价格时请引导用户去官网或让我继续在线搜索。',
       },
-      {
-        role: 'user',
-        content: userContent,
-      },
+      { role: 'system', content: `你可以使用以下信息作为参考（不是用户原话）：\n${JSON.stringify(contextPayload, null, 2)}` },
+      ...safeHistory,
     ];
+
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== 'user' || last.content !== (userQuery || '')) {
+      messages.push({ role: 'user', content: userQuery || '' });
+    }
 
     const resp = await deepseekClient.chat.completions.create({
       model: 'deepseek-chat',
-      temperature: 0.1,
-      messages: prompt,
+      temperature: 0.4,
+      messages,
     });
 
     const msg = resp?.choices?.[0]?.message?.content;
@@ -873,7 +951,10 @@ app.post('/api/agent', async (req, res) => {
   console.log(`${logPrefix} ========== 收到新的 Agent 请求 ==========`);
   
   const body = req.body || {};
-  const rawQuery = (body.query || '').toString().trim();
+  const incomingMessages = Array.isArray(body.messages) ? body.messages : [];
+  const normalizedIncomingMessages = normalizeAgentMessages(incomingMessages);
+  const lastUser = [...normalizedIncomingMessages].reverse().find((m) => m.role === 'user');
+  const rawQuery = (body.query || lastUser?.content || '').toString().trim();
   console.log(`${logPrefix} 原始查询: "${rawQuery}"`);
   
   if (!rawQuery) {
@@ -940,16 +1021,24 @@ app.post('/api/agent', async (req, res) => {
   // 处理 chat 意图
   if (intent === 'chat') {
     console.log(`${logPrefix} 💬 处理 chat 意图（闲聊/问候）`);
-    const message = intentMessage || [
-      '您好！我是 Feel 智能助手 🌟',
-      '',
-      '我可以帮您：',
-      '• 查询奢侈品价格（输入商品名称或编号）',
-      '• 在线搜索品牌新品（说"在线查询XX品牌商品"）',
-      '',
-      '支持 Dior、Gucci、Prada、LV、Chanel 等 40+ 奢侈品牌',
-      '请问有什么可以帮您的？',
-    ].join('\n');
+    const message =
+      (await askDeepseekChat({
+        history: normalizedIncomingMessages,
+        userQuery: rawQuery,
+        intent,
+        candidates: [],
+        onlineResults: '',
+      })) ||
+      intentMessage ||
+      [
+        '您好！我是 Feel 智能助手',
+        '',
+        '我可以帮您：',
+        '• 查询奢侈品价格（输入商品名称或编号）',
+        '• 在线搜索品牌新品（说"在线查询XX品牌商品"）',
+        '',
+        '请问有什么可以帮您的？',
+      ].join('\n');
     console.log(`${logPrefix} ========== 请求处理完成 ==========`);
     return res.json({ message, intent });
   }
@@ -957,16 +1046,25 @@ app.post('/api/agent', async (req, res) => {
   // 处理 other 意图
   if (intent === 'other') {
     console.log(`${logPrefix} ❓ 处理 other 意图（其他情况）`);
-    const message = intentMessage || [
-      '抱歉，我暂时无法理解您的问题 😅',
-      '',
-      '您可以尝试：',
-      '• 输入具体商品名称，如"Dior Lady Dior包"',
-      '• 输入商品编号/参考号',
-      '• 说"在线查询Gucci裙子"进行网络搜索',
-      '',
-      '如有其他问题，欢迎随时咨询！',
-    ].join('\n');
+    const message =
+      (await askDeepseekChat({
+        history: normalizedIncomingMessages,
+        userQuery: rawQuery,
+        intent,
+        candidates: [],
+        onlineResults: '',
+      })) ||
+      intentMessage ||
+      [
+        '抱歉，我暂时无法理解您的问题',
+        '',
+        '您可以尝试：',
+        '• 输入具体商品名称，如"Dior Lady Dior包"',
+        '• 输入商品编号/参考号',
+        '• 说"在线查询Gucci裙子"进行网络搜索',
+        '',
+        '如有其他问题，欢迎随时咨询！',
+      ].join('\n');
     console.log(`${logPrefix} ========== 请求处理完成 ==========`);
     return res.json({ message, intent });
   }
@@ -984,43 +1082,19 @@ app.post('/api/agent', async (req, res) => {
     const lookupQuery = normalizeBrandInQuery(hint).toLowerCase();
     console.log(`${onlineLogPrefix} 本地查询关键词: "${lookupQuery}"`);
     console.log(`${onlineLogPrefix} 本地商品总数: ${products.length}`);
-    
-    let matched = null;
 
-    // 先尝试本地查询
-    console.log(`${logPrefix} 开始本地商品匹配...`);
-    for (const item of products) {
-      const ref = (item.reference || '').toString().trim().toLowerCase();
-      const name = (
-        item.produit ||
-        item.designation ||
-        ''
-      ).toString().trim().toLowerCase();
+    const topMatches = findTopProductCandidates(products, lookupQuery, 5);
+    const matched = topMatches.length > 0 ? topMatches[0].item : null;
+    const candidates = toCandidateBrief(topMatches);
 
-      if (!ref && !name) continue;
-
-      const refHit =
-        ref &&
-        (lookupQuery === ref || ref.includes(lookupQuery) || lookupQuery.includes(ref));
-
-      const nameHit =
-        name &&
-        lookupQuery.length >= 3 &&
-        name.includes(lookupQuery);
-
-      if (refHit || nameHit) {
-        matched = item;
-        console.log(`${logPrefix} ✅ 本地匹配成功:`, {
-          reference: item.reference,
-          produit: item.produit,
-          designation: item.designation,
-          prix_vente: item.prix_vente,
-        });
-        break;
-      }
-    }
-    
-    if (!matched) {
+    if (matched) {
+      console.log(`${logPrefix} ✅ 本地匹配成功:`, {
+        reference: matched.reference,
+        produit: matched.produit,
+        designation: matched.designation,
+        prix_vente: matched.prix_vente,
+      });
+    } else {
       console.log(`${logPrefix} ⚠️  本地未找到匹配商品`);
     }
 
@@ -1032,8 +1106,8 @@ app.post('/api/agent', async (req, res) => {
       : '未知';
     const reference = matched ? (matched.reference || '') : '';
     // 提取商品链接（lien_externe 是商品页面链接，img_url 是图片链接）
-    const productLink = matched 
-      ? (matched.lien_externe || '') 
+    const productLink = matched
+      ? (matched.lien_externe || '')
       : '';
     
     // 提取品牌信息
@@ -1052,32 +1126,29 @@ app.post('/api/agent', async (req, res) => {
     // 调用 DeepSeek 生成回复
     console.log(`${onlineLogPrefix} 调用 DeepSeek 生成回复...`);
     try {
-      const reply = await askDeepseek({
-        productName,
-        price,
-        reference,
-        query: rawQuery,
-        matched: Boolean(matched),
+      const reply = await askDeepseekChat({
+        history: normalizedIncomingMessages,
+        userQuery: rawQuery,
+        intent,
+        candidates,
         onlineResults,
-        brand: brandName,
-        link: productLink,
       });
 
       const message =
         (reply && reply.trim()) ||
         (matched
-          ? `您好，我是Feel智能助手，您查询的${productName}价格为${price}欧元`
-          : '不知道');
-      
+          ? `您好！为您查询到 **${productName}**\n💰 价格：${price}€\n📦 参考号：${reference}${productLink ? `\n🔗 ${productLink}` : ''}`
+          : '抱歉，暂未找到相关商品。您可以尝试提供更具体的商品名称/参考号，或说“在线查询{品牌}{商品}”我帮您搜索官网。');
+
       console.log(`${logPrefix} ✅ 生成最终回复:`, message.substring(0, 100) + (message.length > 100 ? '...' : ''));
       console.log(`${logPrefix} ========== 请求处理完成 ==========`);
-      
+
       return res.json({ message, product: productName, price, reference, matched: Boolean(matched), intent, online: true });
     } catch (err) {
       console.error(`${logPrefix} ❌ DeepSeek 回复失败:`, err);
       const message = matched
-        ? `您好，我是Feel智能助手，您查询的${productName}价格为${price}欧元`
-        : '不知道';
+        ? `您好！为您查询到 **${productName}**\n💰 价格：${price}€\n📦 参考号：${reference}${productLink ? `\n🔗 ${productLink}` : ''}`
+        : '抱歉，在线搜索暂时无法生成结果。建议您稍后重试或直接访问品牌官网。';
       console.log(`${logPrefix} ========== 使用本地回退 ==========`);
       return res.json({ message, product: productName, price, reference, matched: Boolean(matched), intent, online: true });
     }
@@ -1089,42 +1160,20 @@ app.post('/api/agent', async (req, res) => {
   const lookupQuery = hint.toLowerCase();
   console.log(`${logPrefix} 本地查询关键词: "${lookupQuery}"`);
   console.log(`${logPrefix} 本地商品总数: ${products.length}`);
-  
-  let matched = null;
 
-  console.log(`${logPrefix} 开始本地商品匹配...`);
-  for (const item of products) {
-    const ref = (item.reference || '').toString().trim().toLowerCase();
-    const name = (
-      item.produit ||
-      item.designation ||
-      ''
-    ).toString().trim().toLowerCase();
+  const topMatches = findTopProductCandidates(products, lookupQuery, 5);
+  const matched = topMatches.length > 0 ? topMatches[0].item : null;
+  const candidates = toCandidateBrief(topMatches);
+  const topScore = topMatches.length > 0 ? topMatches[0].score : 0;
 
-    if (!ref && !name) continue;
-
-    const refHit =
-      ref &&
-      (lookupQuery === ref || ref.includes(lookupQuery) || lookupQuery.includes(ref));
-
-    const nameHit =
-      name &&
-      lookupQuery.length >= 3 &&
-      name.includes(lookupQuery);
-
-    if (refHit || nameHit) {
-      matched = item;
-      console.log(`${logPrefix} ✅ 本地匹配成功:`, {
-        reference: item.reference,
-        produit: item.produit,
-        designation: item.designation,
-        prix_vente: item.prix_vente,
-      });
-      break;
-    }
-  }
-  
-  if (!matched) {
+  if (matched) {
+    console.log(`${logPrefix} ✅ 本地匹配成功:`, {
+      reference: matched.reference,
+      produit: matched.produit,
+      designation: matched.designation,
+      prix_vente: matched.prix_vente,
+    });
+  } else {
     console.log(`${logPrefix} ⚠️  本地未找到匹配商品`);
   }
 
@@ -1144,35 +1193,62 @@ app.post('/api/agent', async (req, res) => {
   const localBrandInfo = extractBrandFromQuery(enhancedQuery);
   const brandName = localBrandInfo ? localBrandInfo.brand : (matched?.marque || '');
 
+  // 默认更主动在线查：
+  // - 本地未命中
+  // - 或置信度偏低（容易误匹配）
+  // - 或本地没有商品链接（补全官网信息）
+  let onlineResults = '';
+  const shouldSearchOnline = Boolean(GOOGLE_SEARCH_API_KEY) && (!matched || topScore < 90 || !productLink);
+  if (shouldSearchOnline) {
+    const onlineLogPrefix = '[Agent/Online-Fallback]';
+    try {
+      const searchQuery = enhanceProductTypeInQuery(hint || enhancedQuery);
+      console.log(`${onlineLogPrefix} 触发默认在线搜索，查询内容: "${searchQuery}"`);
+      onlineResults = await searchOnline(searchQuery);
+      console.log(`${onlineLogPrefix} 在线搜索完成:`, {
+        resultLength: onlineResults.length,
+        preview: onlineResults.substring(0, 200) + (onlineResults.length > 200 ? '...' : ''),
+      });
+    } catch (e) {
+      console.error(`${onlineLogPrefix} 在线搜索失败:`, e?.message || e);
+      onlineResults = '';
+    }
+  }
+
   // 查价时调用 DeepSeek，失败时回退
   console.log(`${logPrefix} 调用 DeepSeek 生成回复...`);
   console.log(`${logPrefix} 商品链接: "${productLink}"`);
-  askDeepseek({ productName, price, reference, query: rawQuery, matched: Boolean(matched), brand: brandName, link: productLink })
-    .then((reply) => {
-      // 构建回退消息（包含链接）
-      let fallbackMsg = matched
-        ? `您好！为您查询到 **${productName}**\n💰 价格：${price}€\n📦 参考号：${reference}`
-        : '抱歉，暂未找到相关商品。您可以尝试说"在线查询{品牌}{商品}"搜索官网～';
-      if (matched && productLink) {
-        fallbackMsg += `\n🔗 ${productLink}`;
-      }
-      
-      const message = (reply && reply.trim()) || fallbackMsg;
-      console.log(`${logPrefix} ✅ 生成最终回复:`, message.substring(0, 100) + (message.length > 100 ? '...' : ''));
-      console.log(`${logPrefix} ========== 请求处理完成 ==========`);
-      res.json({ message, product: productName, price, reference, link: productLink, matched: Boolean(matched), intent });
-    })
-    .catch((err) => {
-      console.error(`${logPrefix} ❌ DeepSeek 回复失败:`, err);
-      let message = matched
-        ? `您好！为您查询到 **${productName}**\n💰 价格：${price}€\n📦 参考号：${reference}`
-        : '抱歉，暂未找到相关商品信息。';
-      if (matched && productLink) {
-        message += `\n🔗 ${productLink}`;
-      }
-      console.log(`${logPrefix} ========== 使用本地回退 ==========`);
-      res.json({ message, product: productName, price, reference, link: productLink, matched: Boolean(matched), intent });
+  try {
+    const reply = await askDeepseekChat({
+      history: normalizedIncomingMessages,
+      userQuery: rawQuery,
+      intent,
+      candidates,
+      onlineResults,
     });
+
+    let fallbackMsg = matched
+      ? `您好！为您查询到 **${productName}**\n💰 价格：${price}€\n📦 参考号：${reference}`
+      : '抱歉，暂未找到相关商品。您可以尝试提供更完整的商品名称/参考号，或者说“在线查询{品牌}{商品}”我帮您搜索官网。';
+    if (matched && productLink) {
+      fallbackMsg += `\n🔗 ${productLink}`;
+    }
+
+    const message = (reply && reply.trim()) || fallbackMsg;
+    console.log(`${logPrefix} ✅ 生成最终回复:`, message.substring(0, 100) + (message.length > 100 ? '...' : ''));
+    console.log(`${logPrefix} ========== 请求处理完成 ==========`);
+    return res.json({ message, product: productName, price, reference, link: productLink, matched: Boolean(matched), intent });
+  } catch (err) {
+    console.error(`${logPrefix} ❌ DeepSeek 回复失败:`, err);
+    let message = matched
+      ? `您好！为您查询到 **${productName}**\n💰 价格：${price}€\n📦 参考号：${reference}`
+      : '抱歉，服务暂时不可用，请稍后重试。';
+    if (matched && productLink) {
+      message += `\n🔗 ${productLink}`;
+    }
+    console.log(`${logPrefix} ========== 使用本地回退 ==========`);
+    return res.json({ message, product: productName, price, reference, link: productLink, matched: Boolean(matched), intent });
+  }
 });
 
 // 错误处理中间件（必须在所有路由之后）

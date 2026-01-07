@@ -1,3 +1,68 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    font-family: theme('fontFamily.sans');
+    color: theme('colors.ink.900');
+    background: theme('colors.ink.50');
+  }
+
+  body {
+    margin: 0;
+    background: theme('colors.ink.50');
+  }
+
+  h1, h2, h3, h4 {
+    font-family: theme('fontFamily.serif');
+    letter-spacing: 0.01em;
+  }
+
+  ::selection {
+    background: rgba(200, 169, 106, 0.35);
+  }
+}
+
+@layer components {
+  .lux-container {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .lux-card {
+    @apply bg-white border border-ink-200 rounded-2xl;
+    box-shadow: theme('boxShadow.luxury');
+  }
+
+  .lux-button {
+    @apply inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium transition;
+  }
+  .lux-button-primary {
+    @apply lux-button bg-black text-white hover:bg-ink-900;
+  }
+  .lux-button-ghost {
+    @apply lux-button border border-ink-300 bg-white text-ink-900 hover:bg-ink-100;
+  }
+
+  .lux-texture {
+    background-color: #f4e9df;
+    background-image:
+      radial-gradient(1200px 600px at 20% 10%, rgba(255, 255, 255, 0.70), rgba(255, 255, 255, 0) 60%),
+      radial-gradient(900px 600px at 80% 30%, rgba(200, 169, 106, 0.10), rgba(200, 169, 106, 0) 60%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+    background-attachment: fixed;
+  }
+
+  .lux-tile {
+    @apply rounded-2xl overflow-hidden;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(23, 23, 23, 0.10);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.06);
+    backdrop-filter: blur(6px);
+  }
+
+  .lux-tile:hover {
+    border-color: rgba(185, 147, 74, 0.22);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.08);
+  }
+}
