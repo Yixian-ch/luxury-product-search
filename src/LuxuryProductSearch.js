@@ -31,8 +31,6 @@ const LuxuryProductSearch = () => {
     RTW: '成衣',
     SHOES: '鞋履',
     JEWELRY: '珠宝',
-    WATCHES: '腕表',
-    BEAUTY: '美妆香水',
     ACCESSORIES: '配饰',
   };
 
@@ -317,7 +315,7 @@ const LuxuryProductSearch = () => {
       const c = inferCategory(p);
       counts.set(c, (counts.get(c) || 0) + 1);
     });
-    const order = ['BAGS', 'RTW', 'SHOES', 'JEWELRY', 'WATCHES', 'BEAUTY', 'ACCESSORIES'];
+    const order = ['BAGS', 'RTW', 'SHOES', 'JEWELRY', 'ACCESSORIES'];
     const list = order.filter((c) => (counts.get(c) || 0) > 0);
     return ['ALL', ...list];
   }, [products, inferCategory]);
