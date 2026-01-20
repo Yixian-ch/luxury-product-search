@@ -466,6 +466,12 @@ const LuxuryProductSearch = () => {
             <span className="text-ink-400">/</span>
             <span>{selectedBrand === 'ALL' ? '全部品牌' : selectedBrand}</span>
           </div>
+
+          <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-xs tracking-[0.1em] text-amber-900">
+              💡 提示：所有价格为参考价格，不包含折扣活动价格. 目前品牌价格更新中
+            </p>
+          </div>
         </div>
 
         {products.length === 0 ? (
