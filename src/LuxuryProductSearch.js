@@ -32,6 +32,7 @@ const LuxuryProductSearch = () => {
     SHOES: '鞋履',
     JEWELRY: '珠宝',
     ACCESSORIES: '配饰',
+    COLLECTION_MIUMIU: 'Miu Miu 系列',
   };
 
   const inferCategory = useCallback((product) => {
@@ -187,6 +188,11 @@ const LuxuryProductSearch = () => {
     
     const familleLower = famille.toLowerCase().trim();
     
+    // Collection Miu Miu 系列
+    if (familleLower === 'collection_miumiu') {
+      return 'COLLECTION_MIUMIU';
+    }
+    
     // 包袋类
     if (familleLower === 'sacs') {
       return 'BAGS';
@@ -312,13 +318,13 @@ const LuxuryProductSearch = () => {
   const availableCategories = useMemo(() => {
     const counts = new Map();
     products.forEach((p) => {
-      const c = inferCategory(p);
+      const c = getCategory(p);
       counts.set(c, (counts.get(c) || 0) + 1);
     });
-    const order = ['BAGS', 'RTW', 'SHOES', 'JEWELRY', 'ACCESSORIES'];
+    const order = ['COLLECTION_MIUMIU', 'BAGS', 'RTW', 'SHOES', 'JEWELRY', 'ACCESSORIES'];
     const list = order.filter((c) => (counts.get(c) || 0) > 0);
     return ['ALL', ...list];
-  }, [products, inferCategory]);
+  }, [products, getCategory]);
 
   const filteredProducts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -352,8 +358,16 @@ const LuxuryProductSearch = () => {
   const sortedProducts = useMemo(() => {
     const arr = [...filteredProducts];
     if (!sortBy) return arr;
-    if (sortBy === 'price_asc') return arr.sort((a, b) => (Number(a.prix_vente || 0) - Number(b.prix_vente || 0)));
-    if (sortBy === 'price_desc') return arr.sort((a, b) => (Number(b.prix_vente || 0) - Number(a.prix_vente || 0)));
+    
+    // Helper to get numeric price, treating non-numeric strings as highest value (for "prix sur demande")
+    const getNumericPrice = (priceValue) => {
+      if (!priceValue && priceValue !== 0) return 0;
+      const num = Number(priceValue);
+      return isNaN(num) ? Infinity : num; // "prix sur demande" becomes Infinity, sorts to end
+    };
+    
+    if (sortBy === 'price_asc') return arr.sort((a, b) => getNumericPrice(a.prix_vente) - getNumericPrice(b.prix_vente));
+    if (sortBy === 'price_desc') return arr.sort((a, b) => getNumericPrice(b.prix_vente) - getNumericPrice(a.prix_vente));
     if (sortBy === 'brand_asc') return arr.sort((a, b) => String(a.marque || '').localeCompare(String(b.marque || '')));
     if (sortBy === 'brand_desc') return arr.sort((a, b) => String(b.marque || '').localeCompare(String(a.marque || '')));
     return arr;
@@ -736,32 +750,14 @@ const LuxuryProductSearch = () => {
                     )}
                     {selectedProduct.Rayon && (
                       <div className="flex border-b border-ink-200 pb-3">
-                        <span className="text-xs tracking-[0.2em] uppercase text-ink-500 w-32">分类</span>
+                        <span className="text-xs tracking-[0.2em] uppercase text-ink-500 w-32">性别</span>
                         <span>{selectedProduct.Rayon}</span>
                       </div>
                     )}
                     {selectedProduct.Famille && (
                       <div className="flex border-b border-ink-200 pb-3">
-                        <span className="text-xs tracking-[0.2em] uppercase text-ink-500 w-32">系列</span>
+                        <span className="text-xs tracking-[0.2em] uppercase text-ink-500 w-32">品类</span>
                         <span>{selectedProduct.Famille}</span>
-                      </div>
-                    )}
-                    {selectedProduct.sousfamille && (
-                      <div className="flex border-b border-ink-200 pb-3">
-                        <span className="text-xs tracking-[0.2em] uppercase text-ink-500 w-32">子系列</span>
-                        <span>{selectedProduct.sousfamille}</span>
-                      </div>
-                    )}
-                    {selectedProduct.production_pays && (
-                      <div className="flex border-b border-ink-200 pb-3">
-                        <span className="text-xs tracking-[0.2em] uppercase text-ink-500 w-32">产地</span>
-                        <span>{selectedProduct.production_pays}</span>
-                      </div>
-                    )}
-                    {selectedProduct.poids && (
-                      <div className="flex border-b border-ink-200 pb-3">
-                        <span className="text-xs tracking-[0.2em] uppercase text-ink-500 w-32">重量</span>
-                        <span>{selectedProduct.poids}</span>
                       </div>
                     )}
                     {selectedProduct.lien_externe && (
