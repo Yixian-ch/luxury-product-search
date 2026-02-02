@@ -159,6 +159,11 @@ const BRAND_ALIASES = {
 
 // Famille字段规范化映射：将所有变体统一为标准值
 const FAMILLE_NORMALIZATION_MAP = {
+  // Collection Miu Miu - 统一为 "Collection_Miumiu"
+  'collection_miumiu': 'Collection_Miumiu',
+  'collection miumiu': 'Collection_Miumiu',
+  'miumiu collection': 'Collection_Miumiu',
+  
   // 包袋类 - 统一为 "Sacs"
   'sacs': 'Sacs',
   'sac': 'Sacs',
