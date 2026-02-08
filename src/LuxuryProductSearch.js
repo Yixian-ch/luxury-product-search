@@ -5,6 +5,36 @@ import { Search, Package, Eye, X, Menu, SlidersHorizontal, ChevronRight } from '
 // API 地址：从环境变量读取，本地开发默认 http://localhost:5000
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
+const CATEGORY_LABELS = {
+  ALL: '全部品类',
+  BAGS: '包袋',
+  RTW: '成衣',
+  SHOES: '鞋履',
+  JEWELRY: '珠宝',
+  ACCESSORIES: '配饰',
+  COLLECTION_MIUMIU: 'Miu Miu 系列',
+};
+
+// 品牌更新日期配置
+const BRAND_UPDATE_DATES = {
+  'Dior': '2026年2月2日',
+  'LV': '2026年2月2日', 
+  'Loewe': '2026年2月2日',
+  'Ysl': '2026年2月10日',
+  'Miumiu': '2026年2月2日',
+  'Gucci': '2026年2月2日',
+  'Prada': '2026年2月2日',
+  'Margiela': '2026年2月2日',
+  'Burberry': '2026年2月2日',
+  'Acne Studios': '2026年2月2日',
+  'Max Mara': '2026年2月10日',
+  'Celine': '2026年2月2日',
+  'Fendi': '2026年2月2日',
+  'Moncler': '2026年2月10日',
+  'Fred': '2026年2月10日',
+  'Qeelin': '2026年2月10日',
+};
+
 const LuxuryProductSearch = () => {
   const [products, setProducts] = useState([]);
   // pagination & sorting
@@ -25,15 +55,10 @@ const LuxuryProductSearch = () => {
     categoryCacheRef.current = new WeakMap();
   }, [products]);
 
-  const CATEGORY_LABELS = {
-    ALL: '全部品类',
-    BAGS: '包袋',
-    RTW: '成衣',
-    SHOES: '鞋履',
-    JEWELRY: '珠宝',
-    ACCESSORIES: '配饰',
-    COLLECTION_MIUMIU: 'Miu Miu 系列',
-  };
+  // 获取品牌更新日期
+  const getBrandUpdateDate = useCallback((brand) => {
+    return BRAND_UPDATE_DATES[brand] || BRAND_UPDATE_DATES['ALL'];
+  }, []);
 
   const inferCategory = useCallback((product) => {
     const hay = [
@@ -436,7 +461,7 @@ const LuxuryProductSearch = () => {
           </button>
 
           <div className="text-center">
-            <div className="text-xs tracking-[0.35em] uppercase text-ink-700">FEEL</div>
+            <div className="text-xs tracking-[0.35em] uppercase text-ink-700">FEEL DE LUXE</div>
           </div>
 
           <button
@@ -481,11 +506,13 @@ const LuxuryProductSearch = () => {
             <span>{selectedBrand === 'ALL' ? '全部品牌' : selectedBrand}</span>
           </div>
 
-          <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <p className="text-xs tracking-[0.1em] text-amber-900">
-              💡 价格更新时间：2026年2月2日
-            </p>
-          </div>
+          {selectedBrand !== 'ALL' && (
+            <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-xs tracking-[0.1em] text-amber-900">
+                💡 {selectedBrand} 价格更新时间：{getBrandUpdateDate(selectedBrand)}
+              </p>
+            </div>
+          )}
         </div>
 
         {products.length === 0 ? (
@@ -788,7 +815,7 @@ const LuxuryProductSearch = () => {
           <div className="absolute left-0 top-0 h-full w-[min(420px,92vw)] bg-white border-r border-ink-200 shadow-luxury">
             <div className="p-5 border-b border-ink-200 flex items-center justify-between">
               <div>
-                <p className="text-xs tracking-[0.35em] uppercase text-ink-500">FEEL</p>
+                <p className="text-xs tracking-[0.35em] uppercase text-ink-500">FEEL DE LUXE</p>
                 <p className="mt-1 text-lg font-medium text-ink-900 font-serif">Menu</p>
               </div>
               <button type="button" className="lux-button-ghost" onClick={() => setMenuOpen(false)}>
@@ -848,7 +875,7 @@ const LuxuryProductSearch = () => {
           <div className="absolute right-0 top-0 h-full w-[min(520px,92vw)] bg-white border-l border-ink-200 shadow-luxury">
             <div className="p-5 border-b border-ink-200 flex items-center justify-between">
               <div>
-                <p className="text-xs tracking-[0.35em] uppercase text-ink-500">FEEL</p>
+                <p className="text-xs tracking-[0.35em] uppercase text-ink-500">FEEL DE LUXE</p>
                 <p className="mt-1 text-lg font-medium text-ink-900 font-serif">Filter</p>
               </div>
               <button type="button" className="lux-button-ghost" onClick={() => setFilterOpen(false)}>
