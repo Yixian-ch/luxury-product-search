@@ -4,6 +4,14 @@
 /node_modules
 /.pnp
 .pnp.js
+server/node_modules
+
+# Python
+server/python/.venv
+server/python/__pycache__
+**/__pycache__
+*.pyc
+*.pyo
 
 # testing
 /coverage
@@ -24,3 +32,7 @@ yarn-error.log*
 # data backups
 server/data
 
+
+# env files
+server/.env
+.env

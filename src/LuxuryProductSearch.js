@@ -6,7 +6,7 @@ import { Search, Package, Eye, X, Menu, SlidersHorizontal, ChevronRight } from '
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const CATEGORY_LABELS = {
-  ALL: '全部品类',
+  ALL: '全部品牌',
   BAGS: '包袋',
   RTW: '成衣',
   SHOES: '鞋履',
@@ -35,7 +35,7 @@ const BRAND_UPDATE_DATES = {
   'Qeelin': '2026年2月10日',
 };
 
-const LuxuryProductSearch = () => {
+const LuxuryProductSearch = ({ onReturnToWelcome }) => {
   const [products, setProducts] = useState([]);
   // pagination & sorting
   const [sortBy, setSortBy] = useState(''); // 'price_asc', 'price_desc', 'brand_asc', 'brand_desc'
@@ -46,8 +46,10 @@ const LuxuryProductSearch = () => {
   const [groupByBrand, setGroupByBrand] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState('ALL');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [selectedGender, setSelectedGender] = useState('ALL');
   const [menuOpen, setMenuOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const categoryCacheRef = useRef(new WeakMap());
 
@@ -55,9 +57,19 @@ const LuxuryProductSearch = () => {
     categoryCacheRef.current = new WeakMap();
   }, [products]);
 
+  // 重置所有筛选条件
+  const resetFilters = useCallback(() => {
+    setSelectedCategory('ALL');
+    setSelectedBrand('ALL');
+    setSelectedGender('ALL');
+    setSortBy('');
+    setSearchTerm('');
+    setCurrentPage(1);
+  }, []);
+
   // 获取品牌更新日期
   const getBrandUpdateDate = useCallback((brand) => {
-    return BRAND_UPDATE_DATES[brand] || BRAND_UPDATE_DATES['ALL'];
+    return BRAND_UPDATE_DATES[brand] || '2026年2月2日';
   }, []);
 
   const inferCategory = useCallback((product) => {
@@ -74,135 +86,21 @@ const LuxuryProductSearch = () => {
 
     const has = (patterns) => patterns.some((p) => hay.includes(p));
 
-    if (has(['coque', 'iphone', 'phone case', 'case', '手机壳'])) return 'ACCESSORIES';
-    if (
-      has([
-        'sac',
-        'bag',
-        'handbag',
-        'slingbag',
-        'backpack',
-        'crossbody',
-        'pochette',
-        'clutch',
-        'wallet',
-        'tote',
-        'pouch',
-        '包',
-        '手袋',
-        '钱包',
-        '背包',
-        '斜挎',
-        '单肩',
-        '双肩',
-      ])
-    )
-      return 'BAGS';
-    if (has(['montre', 'watch', '腕表', '手表'])) return 'WATCHES';
-    if (
-      has([
-        'bague',
-        'bracelet',
-        'collier',
-        'boucle',
-        'earring',
-        'necklace',
-        'ring',
-        'jewel',
-        '珠宝',
-        '首饰',
-        '项链',
-        '手链',
-        '戒',
-        '耳环',
-      ])
-    )
-      return 'JEWELRY';
-    if (
-      has([
-        'robe',
-        'dress',
-        'jupe',
-        'skirt',
-        'chemise',
-        'shirt',
-        't-shirt',
-        'veste',
-        'jacket',
-        'manteau',
-        'coat',
-        'pantalon',
-        'pants',
-        'jeans',
-        'pull',
-        'sweater',
-        'cardigan',
-        '连衣裙',
-        '裙',
-        '半裙',
-        '上衣',
-        '衬衫',
-        '外套',
-        '大衣',
-        '裤',
-      ])
-    )
-      return 'RTW';
-    if (
-      has([
-        'shoe',
-        'sneaker',
-        'boot',
-        'sandale',
-        'loafer',
-        'mocassin',
-        'escarpin',
-        'mule',
-        '鞋',
-        '靴',
-        '凉鞋',
-        '高跟',
-      ])
-    )
-      return 'SHOES';
-    if (
-      has([
-        'parfum',
-        'fragrance',
-        'eau de',
-        'beauty',
-        'makeup',
-        'lipstick',
-        'soin',
-        'crème',
-        '香水',
-        '口红',
-        '护肤',
-        '彩妆',
-      ])
-    )
-      return 'BEAUTY';
-    if (
-      has([
-        'ceinture',
-        'belt',
-        'foulard',
-        'scarf',
-        'lunettes',
-        'sunglasses',
-        'chapeau',
-        'hat',
-        'gant',
-        'glove',
-        '围巾',
-        '腰带',
-        '皮带',
-        '墨镜',
-        '帽',
-        '手套',
-      ])
-    )
-      return 'ACCESSORIES';
+    // 分类检测规则表
+    const rules = [
+      { patterns: ['coque', 'iphone', 'phone case', 'case', '手机壳'], category: 'ACCESSORIES' },
+      { patterns: ['sac', 'bag', 'handbag', 'slingbag', 'backpack', 'crossbody', 'pochette', 'clutch', 'wallet', 'tote', 'pouch', '包', '手袋', '钱包', '背包', '斜挎', '单肩', '双肩'], category: 'BAGS' },
+      { patterns: ['montre', 'watch', '腕表', '手表'], category: 'WATCHES' },
+      { patterns: ['bague', 'bracelet', 'collier', 'boucle', 'earring', 'necklace', 'ring', 'jewel', '珠宝', '首饰', '项链', '手链', '戒', '耳环'], category: 'JEWELRY' },
+      { patterns: ['robe', 'dress', 'jupe', 'skirt', 'chemise', 'shirt', 't-shirt', 'veste', 'jacket', 'manteau', 'coat', 'pantalon', 'pants', 'jeans', 'pull', 'sweater', 'cardigan', '连衣裙', '裙', '半裙', '上衣', '衬衫', '外套', '大衣', '裤'], category: 'RTW' },
+      { patterns: ['shoe', 'sneaker', 'boot', 'sandale', 'loafer', 'mocassin', 'escarpin', 'mule', '鞋', '靴', '凉鞋', '高跟'], category: 'SHOES' },
+      { patterns: ['parfum', 'fragrance', 'eau de', 'beauty', 'makeup', 'lipstick', 'soin', 'crème', '香水', '口红', '护肤', '彩妆'], category: 'BEAUTY' },
+      { patterns: ['ceinture', 'belt', 'foulard', 'scarf', 'lunettes', 'sunglasses', 'chapeau', 'hat', 'gant', 'glove', '围巾', '腰带', '皮带', '墨镜', '帽', '手套'], category: 'ACCESSORIES' },
+    ];
+
+    for (const rule of rules) {
+      if (has(rule.patterns)) return rule.category;
+    }
 
     return 'ACCESSORIES';
   }, []);
@@ -363,6 +261,13 @@ const LuxuryProductSearch = () => {
         return false;
       }
 
+      if (selectedGender !== 'ALL') {
+        const rayon = typeof product.Rayon === 'string' ? product.Rayon.trim() : '';
+        if (rayon !== selectedGender) {
+          return false;
+        }
+      }
+
       if (!term) return true;
 
       const fields = [
@@ -377,7 +282,7 @@ const LuxuryProductSearch = () => {
         return String(field).toLowerCase().includes(term);
       });
     });
-  }, [products, searchTerm, selectedBrand, selectedCategory, getCategory]);
+  }, [products, searchTerm, selectedBrand, selectedCategory, selectedGender, getCategory]);
 
   // apply sorting
   const sortedProducts = useMemo(() => {
@@ -447,38 +352,103 @@ const LuxuryProductSearch = () => {
     return candidates.find((url) => typeof url === 'string' && url.trim()) || '';
   };
 
+  // 产品卡片组件
+  const ProductCard = ({ product, index, keyPrefix = '' }) => {
+    const imageUrl = getProductImageUrl(product);
+    return (
+      <div
+        key={keyPrefix ? `${keyPrefix}-${index}` : index}
+        className="group lux-tile cursor-pointer"
+        onClick={() => setSelectedProduct(product)}
+      >
+        {/* Image Container */}
+        <div className="aspect-square relative bg-ink-50 overflow-hidden">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={product.produit || '商品图片'}
+              loading="lazy"
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Package size={48} className="text-ink-200" strokeWidth={1} />
+            </div>
+          )}
+        </div>
+
+        {/* Info Container - Separated from image */}
+        <div className="p-5 bg-white">
+          <p className="text-xs tracking-[0.15em] uppercase text-ink-500 mb-2">
+            {product.marque || 'Brand'}
+          </p>
+          <h3 className="font-luxury text-lg text-ink-900 leading-snug line-clamp-2 mb-3 group-hover:text-gold-600 transition-colors duration-300">
+            {product.produit || '未命名商品'}
+          </h3>
+          <div className="flex items-baseline justify-between pt-3 border-t border-ink-100">
+            <span className="font-luxury text-xl text-ink-900">
+              {formatPrice(product.prix_vente)}
+            </span>
+            <span className="text-xs tracking-[0.1em] uppercase text-ink-400 group-hover:text-ink-600 transition-colors">
+              View
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen lux-texture">
-      <header className="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-ink-200">
+      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-ink-100">
         <div className="w-full px-4 sm:px-6 lg:px-10 h-16 flex items-center justify-between">
           <button
             type="button"
-            className="flex items-center gap-2 text-xs tracking-[0.25em] uppercase text-ink-700 hover:text-ink-900"
+            className="lux-button-text"
             onClick={() => setMenuOpen(true)}
           >
-            <Menu size={18} />
-            Menu
+            <Menu size={18} strokeWidth={1.5} />
+            <span className="hidden sm:inline">Menu</span>
           </button>
 
-          <div className="text-center">
-            <div className="text-xs tracking-[0.35em] uppercase text-ink-700">FEEL DE LUXE</div>
+          <div className="absolute left-1/2 -translate-x-1/2">
+            <button
+              type="button"
+              className="font-luxury text-xl sm:text-2xl tracking-[0.15em] text-ink-900 hover:text-gold-600 transition-colors duration-300"
+              onClick={onReturnToWelcome}
+            >
+              FEEL DE LUXE
+            </button>
           </div>
 
-          <button
-            type="button"
-            className="flex items-center gap-2 text-xs tracking-[0.25em] uppercase text-ink-700 hover:text-ink-900"
-            onClick={() => setFilterOpen(true)}
-          >
-            Filter
-            <SlidersHorizontal size={18} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              className="p-2 rounded-full text-ink-600 hover:text-ink-900 hover:bg-ink-50 transition-all duration-200"
+              onClick={() => setSearchOpen(!searchOpen)}
+              aria-label="Search"
+            >
+              <Search size={20} strokeWidth={1.5} />
+            </button>
+            <button
+              type="button"
+              className="lux-button-text ml-2"
+              onClick={() => setFilterOpen(true)}
+            >
+              <span className="hidden sm:inline">Filter</span>
+              <SlidersHorizontal size={18} strokeWidth={1.5} />
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="w-full px-4 sm:px-6 lg:px-10 py-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1">
+        {searchOpen && (
+          <div className="mb-6">
+            <div className="relative">
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-ink-400" size={18} />
               <input
                 type="text"
@@ -486,24 +456,20 @@ const LuxuryProductSearch = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-12 pr-4 h-12 rounded-full border border-ink-300 bg-white/80 backdrop-blur focus:ring-2 focus:ring-black focus:border-transparent"
+                autoFocus
               />
             </div>
-            <button
-              type="button"
-              className="lux-button-ghost h-12"
-              onClick={() => setFilterOpen(true)}
-            >
-              筛选
-              <ChevronRight size={18} />
-            </button>
           </div>
+        )}
 
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs tracking-[0.15em] uppercase text-ink-600">
-            <span>Results {filteredProducts.length}</span>
-            <span className="text-ink-400">/</span>
-            <span>{CATEGORY_LABELS[selectedCategory] || '全部品类'}</span>
+        <div className="mb-8">
+          <div className="flex flex-wrap items-center gap-3 text-xs tracking-[0.15em] uppercase text-ink-600">
+            <span>{CATEGORY_LABELS[selectedCategory] || '全部品牌'}</span>
             <span className="text-ink-400">/</span>
             <span>{selectedBrand === 'ALL' ? '全部品牌' : selectedBrand}</span>
+          </div>
+          <div className="text-xs tracking-[0.15em] uppercase text-ink-600">
+            <span>总商品数 {filteredProducts.length}</span>
           </div>
 
           {selectedBrand !== 'ALL' && (
@@ -530,63 +496,9 @@ const LuxuryProductSearch = () => {
                   <p className="text-xs tracking-[0.25em] uppercase text-ink-500">{items.length} items</p>
                 </div>
                 <div className={productGridClassName}>
-                  {items.map((product, index) => {
-                    const imageUrl = getProductImageUrl(product);
-                    return (
-                    <div
-                      key={`${brand}-${index}`}
-                      className="lux-tile cursor-pointer transition hover:-translate-y-0.5"
-                      onClick={() => setSelectedProduct(product)}
-                    >
-                      <div className="aspect-square relative">
-                          {imageUrl ? (
-                          <img
-                              src={imageUrl}
-                              alt={product.produit || '商品图片'}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                            }}
-                          />
-                        ) : null}
-                      </div>
-                      <div className="p-5">
-                        <h3 className="font-medium text-lg text-ink-900 mb-1 line-clamp-2">
-                          {product.produit || '未命名商品'}
-                        </h3>
-                        <p className="text-sm text-ink-600 mb-2 line-clamp-1">
-                          {product.marque || '品牌未知'}
-                        </p>
-                {renderSizeBadges(parseSizes(product.taille))}
-                        <div className="flex items-center justify-between mt-4">
-                          <span className="text-2xl font-semibold text-ink-900">
-                            {formatPrice(product.prix_vente)}
-                          </span>
-                          <button className="flex items-center gap-1 text-sm text-ink-600 hover:text-ink-900" type="button">
-                            <Eye size={16} />
-                            查看详情
-                          </button>
-                        </div>
-                        {product.reference && (
-                          <p className="text-xs text-ink-500 mt-3">
-                            型号: {product.reference}
-                          </p>
-                        )}
-                        {product.Link && (
-                          <a
-                            href={product.Link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-ink-700 hover:underline mt-2 inline-block"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            前往商品链接
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  );
-                  })}
+                  {items.map((product, index) => (
+                    <ProductCard product={product} index={index} keyPrefix={brand} />
+                  ))}
                 </div>
               </section>
             ))}
@@ -594,65 +506,9 @@ const LuxuryProductSearch = () => {
         ) : (
           <div>
             <div className={productGridClassName}>
-              {pagedProducts.map((product, index) => {
-                const imageUrl = getProductImageUrl(product);
-                return (
-              <div
-                key={index}
-                className="lux-tile cursor-pointer transition hover:-translate-y-0.5"
-                onClick={() => setSelectedProduct(product)}
-              >
-                <div className="aspect-square relative">
-                    {imageUrl ? (
-                    <img
-                        src={imageUrl}
-                      alt={product.produit || '商品图片'}
-                      loading="lazy"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                      }}
-                    />
-                  ) : null}
-                </div>
-
-                <div className="p-5">
-                  <h3 className="font-medium text-lg text-ink-900 mb-1 line-clamp-2">
-                    {product.produit || '未命名商品'}
-                  </h3>
-                  <p className="text-sm text-ink-600 mb-2 line-clamp-1">
-                    {product.marque || '品牌未知'}
-                  </p>
-                  {renderSizeBadges(parseSizes(product.taille))}
-                  <div className="flex items-center justify-between mt-4">
-                    <span className="text-2xl font-semibold text-ink-900">
-                      {formatPrice(product.prix_vente)}
-                    </span>
-                    <button className="flex items-center gap-1 text-sm text-ink-600 hover:text-ink-900" type="button">
-                      <Eye size={16} />
-                      查看详情
-                    </button>
-                  </div>
-                  {product.reference && (
-                    <p className="text-xs text-ink-500 mt-3">
-                      型号: {product.reference}
-                    </p>
-                  )}
-                  {product.Link && (
-                    <a
-                      href={product.Link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-ink-700 hover:underline mt-2 inline-block"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      前往商品链接
-                    </a>
-                  )}
-                </div>
-              </div>
-              );
-              })}
+              {pagedProducts.map((product, index) => (
+                <ProductCard product={product} index={index} />
+              ))}
             </div>
 
             {/* pagination controls */}
@@ -676,22 +532,21 @@ const LuxuryProductSearch = () => {
       </div>
 
       {selectedProduct && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="lux-card max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-ink-200 p-4 flex items-center justify-between">
-              <h2 className="text-2xl font-medium text-ink-900">商品详情</h2>
-              <button
-                onClick={() => setSelectedProduct(null)}
-                className="lux-button-ghost"
-                type="button"
-              >
-                <X size={18} />
-              </button>
-            </div>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col relative shadow-2xl">
+            {/* Close button - elevated z-index */}
+            <button
+              onClick={() => setSelectedProduct(null)}
+              className="absolute top-5 right-5 z-30 w-10 h-10 rounded-full bg-white border border-ink-200 flex items-center justify-center text-ink-600 hover:text-ink-900 hover:border-ink-400 transition-all duration-200 shadow-sm"
+              type="button"
+              aria-label="Close"
+            >
+              <X size={18} strokeWidth={1.5} />
+            </button>
 
-            <div className="p-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="aspect-square rounded-2xl overflow-hidden relative border border-ink-200">
+            <div className="p-6 sm:p-8 overflow-y-auto flex-1">
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="aspect-square rounded-xl overflow-hidden relative bg-ink-50 z-0">
                   {getProductImageUrl(selectedProduct) ? (
                     <img
                       src={getProductImageUrl(selectedProduct)}
@@ -702,12 +557,19 @@ const LuxuryProductSearch = () => {
                         e.target.style.display = 'none';
                       }}
                     />
-                  ) : null}
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Package size={64} className="text-ink-200" strokeWidth={1} />
+                    </div>
+                  )}
                 </div>
 
-                <div>
-                  <h3 className="text-3xl font-medium text-ink-900 mb-2">{selectedProduct.produit}</h3>
-                  <p className="text-3xl font-semibold text-ink-900 mb-6">
+                <div className="flex flex-col">
+                  <p className="text-xs tracking-[0.2em] uppercase text-ink-500 mb-2">
+                    {selectedProduct.marque || 'Brand'}
+                  </p>
+                  <h3 className="font-luxury text-2xl sm:text-3xl text-ink-900 mb-4 leading-tight">{selectedProduct.produit}</h3>
+                  <p className="font-luxury text-2xl text-ink-900 mb-8">
                     {formatPrice(selectedProduct.prix_vente)}
                   </p>
 
@@ -811,20 +673,32 @@ const LuxuryProductSearch = () => {
       {/* Menu drawer */}
       {menuOpen && (
         <div className="fixed inset-0 z-40">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setMenuOpen(false)} />
-          <div className="absolute left-0 top-0 h-full w-[min(420px,92vw)] bg-white border-r border-ink-200 shadow-luxury">
-            <div className="p-5 border-b border-ink-200 flex items-center justify-between">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
+          <div className="absolute left-0 top-0 h-full w-[min(400px,90vw)] bg-white shadow-2xl">
+            <div className="p-6 border-b border-ink-100 flex items-center justify-between">
               <div>
-                <p className="text-xs tracking-[0.35em] uppercase text-ink-500">FEEL DE LUXE</p>
-                <p className="mt-1 text-lg font-medium text-ink-900 font-serif">Menu</p>
+                <button
+                  type="button"
+                  className="font-luxury text-xl tracking-[0.15em] text-ink-900 hover:text-gold-600 transition-colors"
+                  onClick={() => {
+                    onReturnToWelcome();
+                    setMenuOpen(false);
+                  }}
+                >
+                  FEEL DE LUXE
+                </button>
               </div>
-              <button type="button" className="lux-button-ghost" onClick={() => setMenuOpen(false)}>
-                <X size={18} />
+              <button 
+                type="button" 
+                className="w-10 h-10 rounded-full flex items-center justify-center text-ink-500 hover:text-ink-900 hover:bg-ink-50 transition-all"
+                onClick={() => setMenuOpen(false)}
+              >
+                <X size={20} strokeWidth={1.5} />
               </button>
             </div>
 
-            <div className="p-5">
-              <p className="text-xs tracking-[0.25em] uppercase text-ink-500 mb-3">Categories</p>
+            <div className="p-6">
+              <p className="text-xs tracking-[0.2em] uppercase text-ink-400 mb-4">Categories</p>
               <div className="space-y-2">
                 {availableCategories.map((c) => (
                   <button
@@ -835,32 +709,24 @@ const LuxuryProductSearch = () => {
                       setCurrentPage(1);
                       setMenuOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between rounded-2xl px-4 py-3 border transition ${
-                      selectedCategory === c
-                        ? 'bg-black text-white border-black'
-                        : 'bg-white border-ink-200 text-ink-900 hover:bg-ink-100'
-                    }`}
+                    className={selectedCategory === c ? 'lux-category-active' : 'lux-category-default'}
                   >
                     <span className="text-sm">{CATEGORY_LABELS[c] || c}</span>
-                    <ChevronRight size={18} />
+                    <ChevronRight size={18} strokeWidth={1.5} />
                   </button>
                 ))}
               </div>
 
-              <div className="mt-6">
+              <div className="mt-8 pt-6 border-t border-ink-100">
                 <button
                   type="button"
-                  className="lux-button-ghost w-full"
+                  className="w-full py-3 text-xs tracking-[0.2em] uppercase text-ink-500 hover:text-ink-900 transition-colors"
                   onClick={() => {
-                    setSelectedCategory('ALL');
-                    setSelectedBrand('ALL');
-                    setSortBy('');
-                    setSearchTerm('');
-                    setCurrentPage(1);
+                    resetFilters();
                     setMenuOpen(false);
                   }}
                 >
-                  重置筛选
+                  Reset Filters
                 </button>
               </div>
             </div>
@@ -871,21 +737,24 @@ const LuxuryProductSearch = () => {
       {/* Filter drawer */}
       {filterOpen && (
         <div className="fixed inset-0 z-40">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setFilterOpen(false)} />
-          <div className="absolute right-0 top-0 h-full w-[min(520px,92vw)] bg-white border-l border-ink-200 shadow-luxury">
-            <div className="p-5 border-b border-ink-200 flex items-center justify-between">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setFilterOpen(false)} />
+          <div className="absolute right-0 top-0 h-full w-[min(480px,90vw)] bg-white shadow-2xl">
+            <div className="p-6 border-b border-ink-100 flex items-center justify-between">
               <div>
-                <p className="text-xs tracking-[0.35em] uppercase text-ink-500">FEEL DE LUXE</p>
-                <p className="mt-1 text-lg font-medium text-ink-900 font-serif">Filter</p>
+                <p className="font-luxury text-xl tracking-[0.1em] text-ink-900">Filters</p>
               </div>
-              <button type="button" className="lux-button-ghost" onClick={() => setFilterOpen(false)}>
-                <X size={18} />
+              <button 
+                type="button" 
+                className="w-10 h-10 rounded-full flex items-center justify-center text-ink-500 hover:text-ink-900 hover:bg-ink-50 transition-all"
+                onClick={() => setFilterOpen(false)}
+              >
+                <X size={20} strokeWidth={1.5} />
               </button>
             </div>
 
-            <div className="p-5 space-y-6 overflow-y-auto h-[calc(100%-80px)]">
+            <div className="p-6 space-y-8 overflow-y-auto h-[calc(100%-80px)]">
               <div>
-                <p className="text-xs tracking-[0.25em] uppercase text-ink-500 mb-3">Categories</p>
+                <p className="text-xs tracking-[0.2em] uppercase text-ink-400 mb-4">Categories</p>
                 <div className="space-y-2">
                   {availableCategories.map((c) => (
                     <button
@@ -895,21 +764,17 @@ const LuxuryProductSearch = () => {
                         setSelectedCategory(c);
                         setCurrentPage(1);
                       }}
-                      className={`w-full flex items-center justify-between rounded-2xl px-4 py-3 border transition ${
-                        selectedCategory === c
-                          ? 'bg-black text-white border-black'
-                          : 'bg-white border-ink-200 text-ink-900 hover:bg-ink-100'
-                      }`}
+                      className={selectedCategory === c ? 'lux-category-active' : 'lux-category-default'}
                     >
                       <span className="text-sm">{CATEGORY_LABELS[c] || c}</span>
-                      <ChevronRight size={18} />
+                      <ChevronRight size={18} strokeWidth={1.5} />
                     </button>
                   ))}
                 </div>
               </div>
 
               <div>
-                <p className="text-xs tracking-[0.25em] uppercase text-ink-500 mb-3">Brands</p>
+                <p className="text-xs tracking-[0.2em] uppercase text-ink-400 mb-4">Brands</p>
                 <div className="flex flex-wrap gap-2">
                   {availableBrands.map((brand) => (
                     <button
@@ -919,78 +784,58 @@ const LuxuryProductSearch = () => {
                         setCurrentPage(1);
                       }}
                       type="button"
-                      className={`whitespace-nowrap px-4 h-9 rounded-full border text-sm transition ${
-                        selectedBrand === brand
-                          ? 'bg-black text-white border-black'
-                          : 'bg-white border-ink-300 text-ink-800 hover:bg-ink-100'
-                      }`}
+                      className={selectedBrand === brand ? 'lux-pill-active' : 'lux-pill-default'}
                     >
-                      {brand === 'ALL' ? '全部品牌' : brand}
+                      {brand === 'ALL' ? 'All Brands' : brand}
                     </button>
                   ))}
                 </div>
               </div>
 
               <div>
-                <p className="text-xs tracking-[0.25em] uppercase text-ink-500 mb-3">Display</p>
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    onClick={() => setGroupByBrand((v) => !v)}
-                    className={groupByBrand ? 'lux-button-primary' : 'lux-button-ghost'}
-                    title="按品牌分组显示"
-                    type="button"
-                  >
-                    {groupByBrand ? '按品牌分组（已启用）' : '按品牌分组'}
-                  </button>
+                <p className="text-xs tracking-[0.2em] uppercase text-ink-400 mb-4">Gender</p>
+                <div className="flex flex-wrap gap-2">
+                  {['ALL', 'Femme', 'Homme'].map((gender) => (
+                    <button
+                      key={gender}
+                      onClick={() => {
+                        setSelectedGender(gender);
+                        setCurrentPage(1);
+                      }}
+                      type="button"
+                      className={selectedGender === gender ? 'lux-pill-active' : 'lux-pill-default'}
+                    >
+                      {gender === 'ALL' ? 'All' : gender}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               <div>
-                <p className="text-xs tracking-[0.25em] uppercase text-ink-500 mb-3">Sort</p>
+                <p className="text-xs tracking-[0.2em] uppercase text-ink-400 mb-4">Sort</p>
                 <select
                   value={sortBy}
                   onChange={(e) => {
                     setSortBy(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="h-11 w-full rounded-full border border-ink-300 bg-white px-4 text-sm"
+                  className="h-11 w-full rounded-full border border-ink-200 bg-white px-5 text-sm text-ink-800 focus:ring-2 focus:ring-black focus:border-transparent transition-all"
                 >
-                  <option value="">默认</option>
-                  <option value="price_asc">价格 从低到高</option>
-                  <option value="price_desc">价格 从高到低</option>
-                  <option value="brand_asc">品牌 A-Z</option>
-                  <option value="brand_desc">品牌 Z-A</option>
+                  <option value="">Default</option>
+                  <option value="price_asc">Price: Low to High</option>
+                  <option value="price_desc">Price: High to Low</option>
+                  <option value="brand_asc">Brand: A-Z</option>
+                  <option value="brand_desc">Brand: Z-A</option>
                 </select>
               </div>
 
-              <div>
-                <p className="text-xs tracking-[0.25em] uppercase text-ink-500 mb-3">Per Page</p>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="h-11 w-full rounded-full border border-ink-300 bg-white px-4 text-sm"
-                >
-                  <option value={12}>12</option>
-                  <option value={24}>24</option>
-                </select>
-              </div>
-
-              <div className="pt-2">
+              <div className="pt-4 border-t border-ink-100">
                 <button
                   type="button"
-                  className="lux-button-ghost w-full"
-                  onClick={() => {
-                    setSelectedCategory('ALL');
-                    setSelectedBrand('ALL');
-                    setSortBy('');
-                    setSearchTerm('');
-                    setCurrentPage(1);
-                  }}
+                  className="w-full py-3 text-xs tracking-[0.2em] uppercase text-ink-500 hover:text-ink-900 transition-colors"
+                  onClick={resetFilters}
                 >
-                  重置筛选
+                  Reset All Filters
                 </button>
               </div>
             </div>

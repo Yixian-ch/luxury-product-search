@@ -1,0 +1,23 @@
+# Feel Europe Luxury API - Python Dependencies
+# 
+# 安裝方式: pip install -r requirements.txt
+
+# Web 框架
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# HTTP 客戶端
+requests>=2.31.0
+
+# OpenAI 兼容 SDK（用於 DeepSeek）
+openai>=1.3.0
+
+# 數據驗證
+pydantic>=2.5.0
+
+# 環境變量
+python-dotenv>=1.0.0
+
+# 可選：異步支持
+httpx>=0.25.0
+aiofiles>=23.2.0

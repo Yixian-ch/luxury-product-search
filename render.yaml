@@ -1,0 +1,20 @@
+# Render 部署配置
+# 文檔：https://render.com/docs/blueprint-spec
+
+services:
+  # Python 後端服務
+  - type: web
+    name: feel-europe-api
+    runtime: python
+    region: frankfurt  # 歐洲區域
+    plan: free  # 或 starter
+    buildCommand: cd server/python && pip install -r requirements.txt
+    startCommand: cd server/python && uvicorn app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DEEPSEEK_API_KEY
+        sync: false  # 手動在 Render 控制台設置
+      - key: GOOGLE_SEARCH_API_KEY
+        sync: false
+      - key: PRODUCTS_JSON_PATH
+        value: /opt/render/project/src/server/data/products.json
+    healthCheckPath: /api/health

@@ -1,22 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Design Tokens */
+:root {
+  --color-primary: #000000;
+  --color-secondary: #FFFFFF;
+  --color-accent: #C8A96A;
+  --color-cream: #FAF9F8;
+  --color-sand: #E8E6E1;
+  --color-charcoal: #1A1A1A;
+  --color-muted: #808080;
+  --font-luxury: 'Cormorant Garamond', Georgia, serif;
+  --shadow-card: 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-card-hover: 0 8px 24px rgba(0,0,0,0.08);
+  --transition-base: 0.3s ease-in-out;
+}
+
 @layer base {
   html {
-    font-family: theme('fontFamily.sans');
-    color: theme('colors.ink.900');
-    background: theme('colors.ink.50');
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--color-charcoal);
+    background: var(--color-cream);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
     margin: 0;
-    background: theme('colors.ink.50');
+    background: var(--color-cream);
   }
 
   h1, h2, h3, h4 {
-    font-family: theme('fontFamily.serif');
-    letter-spacing: 0.01em;
+    font-family: var(--font-luxury);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+
+  h1 {
+    font-size: 3rem;
+    line-height: 1.1;
+  }
+
+  h2 {
+    font-size: 2rem;
+    line-height: 1.2;
+  }
+
+  h3 {
+    font-size: 1.5rem;
+    line-height: 1.3;
   }
 
   ::selection {
@@ -26,43 +61,86 @@
 
 @layer components {
   .lux-container {
-    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-10;
   }
 
   .lux-card {
     @apply bg-white border border-ink-200 rounded-2xl;
-    box-shadow: theme('boxShadow.luxury');
+    box-shadow: var(--shadow-card);
+  }
+
+  .lux-card:hover {
+    box-shadow: var(--shadow-card-hover);
   }
 
   .lux-button {
-    @apply inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium transition;
+    @apply inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-300;
   }
+
   .lux-button-primary {
-    @apply lux-button bg-black text-white hover:bg-ink-900;
+    @apply lux-button bg-black text-white hover:bg-ink-800;
   }
+
   .lux-button-ghost {
-    @apply lux-button border border-ink-300 bg-white text-ink-900 hover:bg-ink-100;
+    @apply lux-button border border-ink-300 bg-white text-ink-900 hover:bg-ink-100 hover:border-ink-400;
+  }
+
+  .lux-button-text {
+    @apply inline-flex items-center gap-2 text-xs tracking-luxury-wide uppercase text-ink-700 hover:text-ink-900 transition-colors cursor-pointer;
   }
 
   .lux-texture {
-    background-color: #f4e9df;
+    background-color: var(--color-cream);
     background-image:
-      radial-gradient(1200px 600px at 20% 10%, rgba(255, 255, 255, 0.70), rgba(255, 255, 255, 0) 60%),
-      radial-gradient(900px 600px at 80% 30%, rgba(200, 169, 106, 0.10), rgba(200, 169, 106, 0) 60%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+      radial-gradient(ellipse 1200px 600px at 20% 10%, rgba(255, 255, 255, 0.8), transparent 60%),
+      radial-gradient(ellipse 900px 600px at 80% 30%, rgba(200, 169, 106, 0.06), transparent 60%);
     background-attachment: fixed;
   }
 
   .lux-tile {
-    @apply rounded-2xl overflow-hidden;
-    background: rgba(255, 255, 255, 0.72);
-    border: 1px solid rgba(23, 23, 23, 0.10);
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.06);
-    backdrop-filter: blur(6px);
+    @apply rounded-2xl overflow-hidden bg-white;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: var(--shadow-card);
+    transition: all var(--transition-base);
   }
 
   .lux-tile:hover {
-    border-color: rgba(185, 147, 74, 0.22);
-    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.08);
+    border-color: rgba(200, 169, 106, 0.25);
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-2px);
+  }
+
+  /* Logo styling */
+  .lux-logo {
+    font-family: var(--font-luxury);
+    font-weight: 400;
+    letter-spacing: 0.15em;
+    color: var(--color-charcoal);
+  }
+
+  /* Pill button for filters */
+  .lux-pill {
+    @apply whitespace-nowrap px-4 h-9 rounded-full border text-sm transition-all duration-200;
+  }
+
+  .lux-pill-default {
+    @apply lux-pill bg-white border-ink-200 text-ink-800 hover:bg-ink-50 hover:border-ink-300;
+  }
+
+  .lux-pill-active {
+    @apply lux-pill bg-black border-black text-white;
+  }
+
+  /* Category button */
+  .lux-category {
+    @apply w-full flex items-center justify-between rounded-xl px-4 py-3 border transition-all duration-200;
+  }
+
+  .lux-category-default {
+    @apply lux-category bg-white border-ink-200 text-ink-900 hover:bg-ink-50 hover:border-ink-300;
+  }
+
+  .lux-category-active {
+    @apply lux-category bg-black border-black text-white;
   }
 }

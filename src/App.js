@@ -2,11 +2,16 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import LuxuryProductSearch from './LuxuryProductSearch';
 import AdminPanel from './AdminPanel';
 import AgentChatModal from './AgentChatModal';
+import WelcomeSplash from './WelcomeSplash';
 
 function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [promptAttempted, setPromptAttempted] = useState(false);
   const [showAgent, setShowAgent] = useState(false);
+  const [hasSeenWelcome, setHasSeenWelcome] = useState(() => {
+    // 从 localStorage 检查用户是否已经看过欢迎页
+    return localStorage.getItem('hasSeenWelcome') === 'true';
+  });
 
   const isBrowser = typeof window !== 'undefined';
   const isAdminRoute = useMemo(() => {
@@ -44,6 +49,21 @@ function App() {
       setPromptAttempted(false);
     }
   };
+
+  const handleWelcomeEnter = () => {
+    localStorage.setItem('hasSeenWelcome', 'true');
+    setHasSeenWelcome(true);
+  };
+
+  const handleReturnToWelcome = () => {
+    localStorage.removeItem('hasSeenWelcome');
+    setHasSeenWelcome(false);
+  };
+
+  // 显示欢迎页面
+  if (!hasSeenWelcome) {
+    return <WelcomeSplash onEnter={handleWelcomeEnter} />;
+  }
 
   // Admin Panel View
   if (isAdmin) {
@@ -92,7 +112,7 @@ function App() {
   }
 
   // Regular User View (chat助手隐藏)
-  return <LuxuryProductSearch />;
+  return <LuxuryProductSearch onReturnToWelcome={handleReturnToWelcome} />;
 }
 
 export default App;

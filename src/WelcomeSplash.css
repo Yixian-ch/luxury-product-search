@@ -1,0 +1,289 @@
+.welcome-splash {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #fafafa 0%, #f5f3f1 50%, #ede9e3 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  z-index: 100;
+}
+
+.ink-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 山水画 */
+.mountain-svg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+}
+
+.mountain {
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+  animation: mountainSway 6s ease-in-out infinite;
+}
+
+.distant-mountain {
+  animation-delay: 0s;
+}
+
+.mid-mountain {
+  animation-delay: 0.5s;
+}
+
+.near-mountain {
+  animation-delay: 1s;
+}
+
+@keyframes mountainSway {
+  0%, 100% {
+    transform: translateY(0px);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(-8px);
+    opacity: 1;
+  }
+}
+
+/* 江河 */
+.river {
+  position: absolute;
+  bottom: 150px;
+  left: 0;
+  width: 100%;
+  height: 200px;
+  opacity: 0.6;
+}
+
+.river svg {
+  width: 100%;
+  height: 100%;
+}
+
+.water-line {
+  animation: waterFlow 4s ease-in-out infinite;
+}
+
+.water-ripple {
+  animation: waterRipple 3s ease-in-out infinite;
+}
+
+@keyframes waterFlow {
+  0%, 100% {
+    d: path('M 0 650 Q 300 620 600 650 T 1200 650');
+  }
+  50% {
+    d: path('M 0 650 Q 300 630 600 650 T 1200 650');
+  }
+}
+
+@keyframes waterRipple {
+  0%, 100% {
+    stroke-dashoffset: 0;
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* 木舟 */
+.boat {
+  position: absolute;
+  bottom: 200px;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: boatRock 4s ease-in-out infinite;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+@keyframes boatRock {
+  0%, 100% {
+    transform: translateX(-50%) translateY(0px) rotateZ(0deg);
+  }
+  25% {
+    transform: translateX(-50%) translateY(-3px) rotateZ(-0.5deg);
+  }
+  50% {
+    transform: translateX(-50%) translateY(-5px) rotateZ(0deg);
+  }
+  75% {
+    transform: translateX(-50%) translateY(-3px) rotateZ(0.5deg);
+  }
+}
+
+/* 雾气效果 */
+.mist {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.mist-layer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse at 50% 50%, transparent 0%, rgba(255, 255, 255, 0.8) 100%);
+  animation: mistFlow 8s linear infinite;
+}
+
+.mist-1 {
+  background: radial-gradient(ellipse at 30% 40%, transparent 0%, rgba(255, 255, 255, 0.6) 100%);
+  animation-delay: 0s;
+}
+
+.mist-2 {
+  background: radial-gradient(ellipse at 70% 60%, transparent 0%, rgba(255, 255, 255, 0.5) 100%);
+  animation-delay: 2s;
+}
+
+.mist-3 {
+  background: radial-gradient(ellipse at 50% 30%, transparent 0%, rgba(255, 255, 255, 0.7) 100%);
+  animation-delay: 4s;
+}
+
+@keyframes mistFlow {
+  0% {
+    transform: translateY(20px) scaleY(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-100px) scaleY(1.2);
+    opacity: 0;
+  }
+}
+
+/* 雾气散去动画 */
+.mist.dissolve {
+  animation: mistDissolve 1.5s ease-out forwards;
+}
+
+@keyframes mistDissolve {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5) translateY(-50px);
+  }
+}
+
+/* 欢迎文字 */
+.welcome-content {
+  position: relative;
+  z-index: 10;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.welcome-title {
+  font-size: 4rem;
+  font-weight: 400;
+  letter-spacing: 0.3em;
+  font-family: 'Georgia', 'Garamond', serif;
+  background: linear-gradient(135deg, #d4a574 0%, #e6c9a8 50%, #d4a574 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 20px rgba(212, 165, 116, 0.3);
+  margin: 0;
+  animation: titleFade 2s ease-in;
+  filter: drop-shadow(2px 2px 4px rgba(212, 165, 116, 0.2));
+  transition: transform 0.5s ease-out;
+}
+
+.welcome-title.title-move-up {
+  animation: titleFade 2s ease-in, titleMoveUp 0.5s ease-out forwards;
+}
+
+.welcome-subtitle {
+  font-size: 0.875rem;
+  letter-spacing: 0.2em;
+  color: rgba(74, 60, 42, 0.6);
+  margin: 0;
+  animation: subtitlePulse 2s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+@keyframes titleFade {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes titleMoveUp {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-40px);
+  }
+}
+
+@keyframes subtitlePulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .welcome-title {
+    font-size: 2.5rem;
+  }
+
+  .welcome-subtitle {
+    font-size: 0.75rem;
+  }
+
+  .boat svg {
+    width: 80px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .welcome-title {
+    font-size: 1.875rem;
+  }
+
+  .welcome-subtitle {
+    font-size: 0.65rem;
+  }
+
+  .boat svg {
+    width: 60px;
+    height: 30px;
+  }
+}
