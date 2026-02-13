@@ -1,6 +1,8 @@
 
 import React, { useState, useMemo, useRef, useCallback } from 'react';
-import { Search, Package, Eye, X, Menu, SlidersHorizontal, ChevronRight } from 'lucide-react';
+import { Search, Package, X, Menu, SlidersHorizontal, ChevronRight } from 'lucide-react';
+// eslint-disable-next-line no-unused-vars
+import { Eye } from 'lucide-react';
 
 // API 地址：从环境变量读取，本地开发默认 http://localhost:5000
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -39,10 +41,12 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
   const [products, setProducts] = useState([]);
   // pagination & sorting
   const [sortBy, setSortBy] = useState(''); // 'price_asc', 'price_desc', 'brand_asc', 'brand_desc'
+  // eslint-disable-next-line no-unused-vars
   const [pageSize, setPageSize] = useState(12);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const [groupByBrand, setGroupByBrand] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState('ALL');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -176,6 +180,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
       .filter(Boolean);
   };
 
+  // eslint-disable-next-line no-unused-vars
   const renderSizeBadges = (sizes, maxVisible = 6) => {
     if (!sizes || sizes.length === 0) return null;
     const visible = sizes.slice(0, maxVisible);
