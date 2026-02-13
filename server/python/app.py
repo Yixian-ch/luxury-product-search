@@ -59,6 +59,10 @@ logger = logging.getLogger(__name__)
 DATA_DIR = Path(__file__).parent.parent / 'data'
 PRODUCTS_FILE = os.getenv('PRODUCTS_JSON_PATH') or str(DATA_DIR / 'products.json')
 
+# 遠端數據 URL（Hugging Face）
+REMOTE_DATA_URL = os.getenv('PRODUCTS_DATA_URL') or 'https://huggingface.co/datasets/yixiannn/luxury-products-data/resolve/main/products.json'
+REMOTE_DATA_BEARER = os.getenv('PRODUCTS_DATA_BEARER') or os.getenv('HF_DATA_TOKEN') or ''
+
 # 最大查詢長度
 MAX_QUERY_LENGTH = 300
 
@@ -125,12 +129,49 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ============ 工具函數 ============
+
+def ensure_data_file():
+    """確保數據文件存在，如果不存在則從遠端下載"""
+    import requests
+    
+    if os.path.exists(PRODUCTS_FILE):
+        logger.info(f"數據文件已存在: {PRODUCTS_FILE}")
+        return
+    
+    if not REMOTE_DATA_URL:
+        logger.warning("數據文件不存在且 PRODUCTS_DATA_URL 未設置")
+        return
+    
+    try:
+        logger.info(f"正在從 {REMOTE_DATA_URL} 下載數據...")
+        headers = {}
+        if REMOTE_DATA_BEARER:
+            headers['Authorization'] = f'Bearer {REMOTE_DATA_BEARER}'
+        
+        response = requests.get(REMOTE_DATA_URL, headers=headers, timeout=60)
+        response.raise_for_status()
+        
+        # 確保目錄存在
+        os.makedirs(os.path.dirname(PRODUCTS_FILE), exist_ok=True)
+        
+        # 寫入文件
+        with open(PRODUCTS_FILE, 'wb') as f:
+            f.write(response.content)
+        
+        logger.info(f"數據文件下載成功: {PRODUCTS_FILE}")
+    except Exception as e:
+        logger.error(f"下載數據文件失敗: {e}")
+
+
+# 應用啟動時確保數據文件存在
+ensure_data_file()
+
 # 初始化服務
 product_searcher = ProductSearcher(data_file=PRODUCTS_FILE)
 deepseek_client = DeepSeekClient()
 
-
-# ============ 工具函數 ============
 
 def read_products() -> List[Dict[str, Any]]:
     """讀取商品數據"""
