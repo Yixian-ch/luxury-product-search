@@ -348,9 +348,6 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
 
   const productGridClassName = useMemo(() => {
     const base = 'grid gap-6';
-    // 让 12/24 的分页在桌面端尽量“整行铺满”
-    // - 12: 4 列 x 3 行（lg）
-    // - 24: 6 列 x 4 行（lg）
     if (Number(pageSize) >= 24) {
       return `${base} grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6`;
     }
@@ -378,39 +375,48 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
         onClick={() => setSelectedProduct(product)}
       >
         {/* Image Container */}
-        <div className="aspect-square relative bg-ink-50 overflow-hidden">
+        <div className="aspect-[4/5] relative overflow-hidden lux-product-image">
           {imageUrl ? (
             <img
               src={imageUrl}
               alt={product.produit || '商品图片'}
               loading="lazy"
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110"
               onError={(e) => {
                 e.target.style.display = 'none';
               }}
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Package size={48} className="text-ink-200" strokeWidth={1} />
+            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+              <Package size={56} className="text-gray-300" strokeWidth={0.8} />
             </div>
           )}
+          
+          {/* Luxury overlay on hover */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500" />
         </div>
 
-        {/* Info Container - Separated from image */}
-        <div className="p-5 bg-white">
-          <p className="text-xs tracking-[0.15em] uppercase text-ink-500 mb-2">
-            {product.marque || 'Brand'}
-          </p>
-          <h3 className="font-luxury text-lg text-ink-900 leading-snug line-clamp-2 mb-3 group-hover:text-gold-600 transition-colors duration-300">
-            {product.produit || '未命名商品'}
-          </h3>
-          <div className="flex items-baseline justify-between pt-3 border-t border-ink-100">
-            <span className="font-luxury text-xl text-ink-900">
+        {/* Info Container */}
+        <div className="lux-product-content">
+          <div className="mb-3">
+            <p className="text-xs tracking-[0.2em] uppercase font-light mb-3" style={{color: 'var(--color-muted)'}}>
+              {product.marque || 'Brand'}
+            </p>
+            <h3 className="font-luxury text-lg leading-tight mb-4 group-hover:text-yellow-700 transition-colors duration-500" style={{color: 'var(--color-charcoal)', lineHeight: '1.4'}}>
+              {product.produit || '未命名商品'}
+            </h3>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <span className="font-luxury text-xl tracking-wider" style={{color: 'var(--color-charcoal)', fontWeight: '300'}}>
               {formatPrice(product.prix_vente)}
             </span>
-            <span className="text-xs tracking-[0.1em] uppercase text-ink-400 group-hover:text-ink-600 transition-colors">
-              View
-            </span>
+            <div className="flex items-center gap-2 text-xs tracking-[0.15em] uppercase font-light group-hover:translate-x-1 transition-transform duration-300" style={{color: 'var(--color-muted)'}}>
+              <span>Discover</span>
+              <svg className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity duration-300" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </div>
           </div>
         </div>
       </div>
@@ -419,33 +425,76 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
 
   return (
     <div className="min-h-screen lux-texture">
-      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-ink-100">
-        <div className="w-full px-4 sm:px-6 lg:px-10 h-16 flex items-center justify-between">
+      {/* Dynamic Luxury Background */}
+      <div className="luxury-dynamic-bg">
+        {/* Floating elements */}
+        <div className="floating-element"></div>
+        <div className="floating-element"></div>
+        <div className="floating-element"></div>
+        <div className="floating-element"></div>
+        <div className="floating-element"></div>
+        
+        {/* Golden particles */}
+        <div className="golden-particles">
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+        </div>
+        
+        {/* Subtle wave */}
+        <div className="luxury-wave"></div>
+      </div>
+
+      <header className="sticky top-0 z-20 backdrop-blur-lg border-b" style={{background: 'rgba(255, 255, 255, 0.85)', borderColor: 'rgba(212, 175, 55, 0.2)'}}>
+        <div className="w-full px-6 sm:px-8 lg:px-12 h-20 flex items-center justify-between">
           <button
             type="button"
             className="lux-button-text"
             onClick={() => setMenuOpen(true)}
           >
-            <Menu size={18} strokeWidth={1.5} />
-            <span className="hidden sm:inline">Menu</span>
+            <Menu size={18} strokeWidth={1} />
+            <span className="hidden sm:inline font-light">Menu</span>
           </button>
 
           <div className="absolute left-1/2 -translate-x-1/2">
             <button
               type="button"
-              className="font-luxury text-xl sm:text-2xl tracking-[0.15em] text-ink-900 hover:text-gold-600 transition-colors duration-300"
+              className="font-luxury text-2xl sm:text-3xl tracking-[0.2em] transition-all duration-500 hover:scale-105"
               onClick={onReturnToWelcome}
+              style={{color: 'var(--color-charcoal)', fontWeight: '200', textShadow: '0 1px 2px rgba(0,0,0,0.1)'}}
+              onMouseEnter={(e) => {
+                e.target.style.color = 'var(--color-accent)';
+                e.target.style.textShadow = '0 2px 8px rgba(212, 175, 55, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.color = 'var(--color-charcoal)';
+                e.target.style.textShadow = '0 1px 2px rgba(0,0,0,0.1)';
+              }}
             >
               FEEL DE LUXE
             </button>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-3">
             <button
               type="button"
-              className="p-2 rounded-full text-ink-600 hover:text-ink-900 hover:bg-ink-50 transition-all duration-200"
+              className="p-3 rounded-full transition-all duration-300 hover:bg-white/50"
               onClick={() => setSearchOpen(!searchOpen)}
               aria-label="Search"
+              style={{color: 'var(--color-muted)'}}
+              onMouseEnter={(e) => {
+                e.target.style.color = 'var(--color-accent)';
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.color = 'var(--color-muted)';
+                e.target.style.transform = 'scale(1)';
+              }}
             >
               <Search size={20} strokeWidth={1.5} />
             </button>
@@ -454,14 +503,14 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
               className="lux-button-text ml-2"
               onClick={() => setFilterOpen(true)}
             >
-              <span className="hidden sm:inline">Filter</span>
-              <SlidersHorizontal size={18} strokeWidth={1.5} />
+              <span className="hidden sm:inline font-light">Filter</span>
+              <SlidersHorizontal size={18} strokeWidth={1} />
             </button>
           </div>
         </div>
       </header>
 
-      <div className="w-full px-4 sm:px-6 lg:px-10 py-8">
+      <div className="lux-container py-8">
         {searchOpen && (
           <div className="mb-6">
             <div className="relative">
@@ -499,8 +548,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
 
         {products.length === 0 ? (
           <div className="lux-card p-10 text-center">
-            <Package size={56} className="mx-auto text-ink-300 mb-4" />
-            <h3 className="text-2xl font-medium text-ink-900">商品数据加載中</h3>
+            <h3 className="text-2xl font-medium text-ink-900">商品数据加載中...</h3>
           </div>
         ) : groupByBrand ? (
           <div className="space-y-10">
@@ -713,7 +761,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
             </div>
 
             <div className="p-6">
-              <p className="text-xs tracking-[0.2em] uppercase text-ink-400 mb-4">Categories</p>
+              <p className="text-xs tracking-[0.2em] uppercase text-ink-400 mb-4">种类</p>
               <div className="space-y-2">
                 {availableCategories.map((c) => (
                   <button
@@ -756,7 +804,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
           <div className="absolute right-0 top-0 h-full w-[min(480px,90vw)] bg-white shadow-2xl">
             <div className="p-6 border-b border-ink-100 flex items-center justify-between">
               <div>
-                <p className="font-luxury text-xl tracking-[0.1em] text-ink-900">Filters</p>
+                <p className="font-luxury text-xl tracking-[0.1em] text-ink-900">筛选器</p>
               </div>
               <button 
                 type="button" 
@@ -769,7 +817,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
 
             <div className="p-6 space-y-8 overflow-y-auto h-[calc(100%-80px)]">
               <div>
-                <p className="text-xs tracking-[0.2em] uppercase text-ink-400 mb-4">Categories</p>
+                <p className="text-xs tracking-[0.2em] uppercase text-ink-400 mb-4">商品分类</p>
                 <div className="space-y-2">
                   {availableCategories.map((c) => (
                     <button
@@ -789,7 +837,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
               </div>
 
               <div>
-                <p className="text-xs tracking-[0.2em] uppercase text-ink-400 mb-4">Brands</p>
+                <p className="text-xs tracking-[0.2em] uppercase text-ink-400 mb-4">品牌</p>
                 <div className="flex flex-wrap gap-2">
                   {availableBrands.map((brand) => (
                     <button
@@ -801,16 +849,16 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
                       type="button"
                       className={selectedBrand === brand ? 'lux-pill-active' : 'lux-pill-default'}
                     >
-                      {brand === 'ALL' ? 'All Brands' : brand}
+                      {brand === 'ALL' ? '所有品牌' : brand}
                     </button>
                   ))}
                 </div>
               </div>
 
               <div>
-                <p className="text-xs tracking-[0.2em] uppercase text-ink-400 mb-4">Gender</p>
+                <p className="text-xs tracking-[0.2em] uppercase text-ink-400 mb-4">性别</p>
                 <div className="flex flex-wrap gap-2">
-                  {['ALL', 'Femme', 'Homme'].map((gender) => (
+                  {['ALL', '女士', '男士'].map((gender) => (
                     <button
                       key={gender}
                       onClick={() => {
@@ -820,14 +868,14 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
                       type="button"
                       className={selectedGender === gender ? 'lux-pill-active' : 'lux-pill-default'}
                     >
-                      {gender === 'ALL' ? 'All' : gender}
+                      {gender === 'ALL' ? '全部' : gender}
                     </button>
                   ))}
                 </div>
               </div>
 
               <div>
-                <p className="text-xs tracking-[0.2em] uppercase text-ink-400 mb-4">Sort</p>
+                <p className="text-xs tracking-[0.2em] uppercase text-ink-400 mb-4">排序</p>
                 <select
                   value={sortBy}
                   onChange={(e) => {
@@ -836,11 +884,11 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
                   }}
                   className="h-11 w-full rounded-full border border-ink-200 bg-white px-5 text-sm text-ink-800 focus:ring-2 focus:ring-black focus:border-transparent transition-all"
                 >
-                  <option value="">Default</option>
-                  <option value="price_asc">Price: Low to High</option>
-                  <option value="price_desc">Price: High to Low</option>
-                  <option value="brand_asc">Brand: A-Z</option>
-                  <option value="brand_desc">Brand: Z-A</option>
+                  <option value="">预设</option>
+                  <option value="price_asc">价格：低到高</option>
+                  <option value="price_desc">价格：高到低</option>
+                  <option value="brand_asc">品牌：A-Z</option>
+                  <option value="brand_desc">品牌：Z-A</option>
                 </select>
               </div>
 
@@ -850,7 +898,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
                   className="w-full py-3 text-xs tracking-[0.2em] uppercase text-ink-500 hover:text-ink-900 transition-colors"
                   onClick={resetFilters}
                 >
-                  Reset All Filters
+                  重置所有筛选
                 </button>
               </div>
             </div>

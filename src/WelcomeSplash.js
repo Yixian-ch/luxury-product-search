@@ -11,6 +11,28 @@ const WelcomeSplash = ({ onEnter }) => {
 
   return (
     <div className="welcome-splash" onClick={handleClick}>
+      {/* Dynamic Luxury Background */}
+      <div className="luxury-dynamic-bg">
+        <div className="floating-element"></div>
+        <div className="floating-element"></div>
+        <div className="floating-element"></div>
+        <div className="floating-element"></div>
+        <div className="floating-element"></div>
+        
+        <div className="golden-particles">
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+        </div>
+        
+        <div className="luxury-wave"></div>
+      </div>
+
       {/* 背景装饰 */}
       <div className="ink-background">
         {/* 柔和曲线装饰 */}
