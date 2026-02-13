@@ -12,8 +12,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
 
 # 確保可以導入本地模塊
@@ -120,6 +121,9 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# GZip 壓縮中間件 - 自動壓縮大於 500 字節的響應
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
 # CORS 配置
 app.add_middleware(
     CORSMiddleware,
@@ -128,6 +132,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 全局產品緩存
+_products_cache = None
+_cache_time = None
+
+def get_cached_products():
+    """獲取緩存的商品數據，避免重複讀取文件"""
+    global _products_cache, _cache_time
+    import time
+    
+    current_time = time.time()
+    # 緩存 5 分鐘
+    if _products_cache is not None and _cache_time is not None:
+        if current_time - _cache_time < 300:
+            return _products_cache
+    
+    _products_cache = read_products()
+    _cache_time = current_time
+    return _products_cache
 
 
 # ============ 工具函數 ============
@@ -217,11 +240,45 @@ def health_check():
 
 
 @app.get("/api/products")
-def get_products():
-    """獲取所有商品"""
+def get_products(
+    page: int = Query(None, ge=1, description="頁碼，從 1 開始"),
+    limit: int = Query(None, ge=1, le=500, description="每頁數量，最大 500"),
+    brand: str = Query(None, description="按品牌篩選"),
+):
+    """
+    獲取商品列表
+    
+    - 不帶參數：返回所有商品（向後兼容）
+    - page + limit：分頁返回
+    - brand：按品牌篩選
+    """
     if not os.path.exists(PRODUCTS_FILE):
         return []
-    return read_products()
+    
+    products = get_cached_products()
+    
+    # 品牌篩選
+    if brand:
+        brand_lower = brand.lower().strip()
+        products = [p for p in products if p.get('marque', '').lower().strip() == brand_lower]
+    
+    # 如果沒有分頁參數，返回全部（向後兼容）
+    if page is None or limit is None:
+        return products
+    
+    # 分頁
+    total = len(products)
+    start = (page - 1) * limit
+    end = start + limit
+    items = products[start:end]
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": (total + limit - 1) // limit
+    }
 
 
 @app.get("/api/products/{reference}")
