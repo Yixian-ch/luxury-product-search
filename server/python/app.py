@@ -15,6 +15,7 @@ from typing import List, Dict, Any, Optional
 from fastapi import FastAPI, HTTPException, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 # 確保可以導入本地模塊
@@ -133,24 +134,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 全局產品緩存
-_products_cache = None
-_cache_time = None
+# 全局產品緩存（啟動時一次載入，常駐內存）
+_products_cache: List[Dict[str, Any]] = []
+_products_loaded = False
 
-def get_cached_products():
-    """獲取緩存的商品數據，避免重複讀取文件"""
-    global _products_cache, _cache_time
+def get_cached_products() -> List[Dict[str, Any]]:
+    """獲取內存中的商品數據（啟動時已載入，無磁盤IO）"""
+    return _products_cache
+
+
+def _load_products_into_memory():
+    """將商品數據載入內存並規範化（只在啟動時調用一次）"""
+    global _products_cache, _products_loaded
     import time
     
-    current_time = time.time()
-    # 緩存 5 分鐘
-    if _products_cache is not None and _cache_time is not None:
-        if current_time - _cache_time < 300:
-            return _products_cache
+    start = time.time()
+    raw = []
+    try:
+        if os.path.exists(PRODUCTS_FILE):
+            with open(PRODUCTS_FILE, 'r', encoding='utf-8') as f:
+                raw = json.load(f)
+    except Exception as e:
+        logger.error(f"讀取商品數據失敗: {e}")
     
-    _products_cache = read_products()
-    _cache_time = current_time
-    return _products_cache
+    # 一次性規範化所有 Famille
+    _products_cache = [
+        {**p, 'Famille': normalize_famille(p.get('Famille', ''))}
+        for p in raw
+    ]
+    _products_loaded = True
+    elapsed = time.time() - start
+    logger.info(f"✅ 商品數據已載入內存: {len(_products_cache)} 條，耗時 {elapsed:.2f}s")
 
 
 # ============ 工具函數 ============
@@ -188,29 +202,18 @@ def ensure_data_file():
         logger.error(f"下載數據文件失敗: {e}")
 
 
-# 應用啟動時確保數據文件存在
+# 應用啟動時：下載數據 → 載入內存
 ensure_data_file()
+_load_products_into_memory()
 
-# 初始化服務
-product_searcher = ProductSearcher(data_file=PRODUCTS_FILE)
+# 初始化服務（ProductSearcher 直接使用內存數據）
+product_searcher = ProductSearcher(products=_products_cache)
 deepseek_client = DeepSeekClient()
 
 
 def read_products() -> List[Dict[str, Any]]:
-    """讀取商品數據"""
-    try:
-        if not os.path.exists(PRODUCTS_FILE):
-            return []
-        with open(PRODUCTS_FILE, 'r', encoding='utf-8') as f:
-            products = json.load(f)
-        # 規範化 Famille 字段
-        return [
-            {**p, 'Famille': normalize_famille(p.get('Famille', ''))}
-            for p in products
-        ]
-    except Exception as e:
-        logger.error(f"讀取商品數據失敗: {e}")
-        return []
+    """讀取商品數據（從內存緩存）"""
+    return get_cached_products()
 
 
 def write_products(data: List[Dict[str, Any]]) -> bool:
@@ -239,11 +242,24 @@ def health_check():
     return {"ok": True}
 
 
+# 前端列表只需要的精簡字段
+LIST_FIELDS = {
+    'reference', 'produit', 'designation', 'marque', 'couleur',
+    'taille', 'prix_vente', 'prix_achat', 'Rayon', 'Famille',
+    'img_url', 'image_url', 'lien_externe',
+}
+
+def _slim_product(p: Dict[str, Any]) -> Dict[str, Any]:
+    """只返回前端列表需要的字段，減少傳輸量"""
+    return {k: v for k, v in p.items() if k in LIST_FIELDS}
+
+
 @app.get("/api/products")
 def get_products(
     page: int = Query(None, ge=1, description="頁碼，從 1 開始"),
     limit: int = Query(None, ge=1, le=500, description="每頁數量，最大 500"),
     brand: str = Query(None, description="按品牌篩選"),
+    slim: bool = Query(False, description="是否返回精簡字段"),
 ):
     """
     獲取商品列表
@@ -251,10 +267,8 @@ def get_products(
     - 不帶參數：返回所有商品（向後兼容）
     - page + limit：分頁返回
     - brand：按品牌篩選
+    - slim=true：只返回列表顯示所需字段
     """
-    if not os.path.exists(PRODUCTS_FILE):
-        return []
-    
     products = get_cached_products()
     
     # 品牌篩選
@@ -262,9 +276,16 @@ def get_products(
         brand_lower = brand.lower().strip()
         products = [p for p in products if p.get('marque', '').lower().strip() == brand_lower]
     
+    # 精簡字段
+    if slim:
+        products = [_slim_product(p) for p in products]
+    
     # 如果沒有分頁參數，返回全部（向後兼容）
     if page is None or limit is None:
-        return products
+        return JSONResponse(
+            content=products,
+            headers={"Cache-Control": "public, max-age=300"}  # 瀏覽器緩存 5 分鐘
+        )
     
     # 分頁
     total = len(products)
@@ -272,13 +293,16 @@ def get_products(
     end = start + limit
     items = products[start:end]
     
-    return {
-        "items": items,
-        "total": total,
-        "page": page,
-        "limit": limit,
-        "pages": (total + limit - 1) // limit
-    }
+    return JSONResponse(
+        content={
+            "items": items,
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "pages": (total + limit - 1) // limit
+        },
+        headers={"Cache-Control": "public, max-age=300"}
+    )
 
 
 @app.get("/api/products/{reference}")
@@ -410,8 +434,8 @@ async def agent_endpoint(request: AgentRequest):
             ])
         return AgentResponse(message=message, intent=intent)
     
-    # 讀取商品數據
-    products = read_products()
+    # 使用內存緩存的商品數據（無磁盤 IO）
+    products = get_cached_products()
     lookup_query = normalize_brand_in_query(hint).lower()
     logger.info(f"{log_prefix} 本地查詢關鍵詞: \"{lookup_query}\"")
     logger.info(f"{log_prefix} 本地商品總數: {len(products)}")

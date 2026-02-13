@@ -209,26 +209,37 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
   // load from localStorage on mount
   React.useEffect(() => {
     let mounted = true;
-    // try server first
-    fetch(`${API_URL}/api/products`)
+
+    // 1) 嘗試先從 localStorage 顯示舊數據（即時呈現）
+    try {
+      const raw = localStorage.getItem('luxury_products');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && mounted) setProducts(parsed);
+      }
+    } catch (e) {
+      console.warn('localStorage read failed', e);
+    }
+
+    // 2) 後台從 API 拉取最新數據（slim=true 精簡字段）
+    fetch(`${API_URL}/api/products?slim=true`)
       .then(res => {
         if (!res.ok) throw new Error('no server');
         return res.json();
       })
       .then(data => {
-        if (mounted && Array.isArray(data)) setProducts(data);
-      })
-      .catch(() => {
-        // fallback to localStorage
-        try {
-          const raw = localStorage.getItem('luxury_products');
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && mounted) setProducts(parsed);
+        if (mounted && Array.isArray(data)) {
+          setProducts(data);
+          // 存入 localStorage 供下次快速顯示
+          try {
+            localStorage.setItem('luxury_products', JSON.stringify(data));
+          } catch (e) {
+            console.warn('localStorage write failed', e);
           }
-        } catch (e) {
-          console.warn('localStorage read failed', e);
         }
+      })
+      .catch((err) => {
+        console.warn('API fetch failed, using localStorage data', err);
       });
 
     return () => { mounted = false; };
@@ -489,8 +500,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
         {products.length === 0 ? (
           <div className="lux-card p-10 text-center">
             <Package size={56} className="mx-auto text-ink-300 mb-4" />
-            <h3 className="text-2xl font-medium text-ink-900">暂无商品数据</h3>
-            <p className="mt-2 text-sm text-ink-600">请在管理员后台上传 Excel 数据后刷新页面。</p>
+            <h3 className="text-2xl font-medium text-ink-900">商品数据加載中</h3>
           </div>
         ) : groupByBrand ? (
           <div className="space-y-10">
