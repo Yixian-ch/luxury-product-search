@@ -56,6 +56,8 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
   const [searchOpen, setSearchOpen] = useState(false);
 
   const categoryCacheRef = useRef(new WeakMap());
+  const imageIndexRef = useRef(new Map()); // 存储每个商品的当前图片索引
+  const autoRotateTimersRef = useRef(new Map()); // 存储自动轮播定时器
 
   React.useEffect(() => {
     categoryCacheRef.current = new WeakMap();
@@ -210,6 +212,17 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
   React.useEffect(() => {
     let mounted = true;
 
+    // 數據版本號 - 修改此版本號會清除舊緩存
+    const DATA_VERSION = '2026-02-18-v2';
+    
+    // 檢查版本，如果不匹配則清除舊緩存
+    const cachedVersion = localStorage.getItem('luxury_products_version');
+    if (cachedVersion !== DATA_VERSION) {
+      console.log('清除舊版本緩存...');
+      localStorage.removeItem('luxury_products');
+      localStorage.setItem('luxury_products_version', DATA_VERSION);
+    }
+
     // 1) 嘗試先從 localStorage 顯示舊數據（即時呈現）
     try {
       const raw = localStorage.getItem('luxury_products');
@@ -233,6 +246,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
           // 存入 localStorage 供下次快速顯示
           try {
             localStorage.setItem('luxury_products', JSON.stringify(data));
+            localStorage.setItem('luxury_products_version', DATA_VERSION);
           } catch (e) {
             console.warn('localStorage write failed', e);
           }
@@ -342,7 +356,10 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
   const totalPages = Math.max(1, Math.ceil(sortedProducts.length / pageSize));
 
   const formatPrice = (price) => {
-    if (!price) return 'N/A';
+    // Si le prix est une chaîne de texte (comme "Prix sur demande"), l'afficher directement
+    if (typeof price === 'string') return price;
+    // Si le prix est 0 ou n'existe pas
+    if (!price || price === 0) return 'Prix sur demande';
     return `${Number(price).toLocaleString('fr-FR')}€`;
   };
 
@@ -365,9 +382,50 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
     return candidates.find((url) => typeof url === 'string' && url.trim()) || '';
   };
 
+  // 解析商品的所有图片URL（逗号分隔，但需跳过URL内部的逗号参数）
+  const getProductImageUrls = (item) => {
+    if (!item) return [];
+    const candidates = [
+      item.img_url,
+      item.image_url,
+      item.image,
+      item.photo,
+    ];
+    const raw = candidates.find((url) => typeof url === 'string' && url.trim()) || '';
+    if (!raw) return [];
+    // 以「逗號後緊接 http」作為 URL 邊界分割，避免切斷 URL 內部的逗號參數
+    return raw.split(/,(?=https?:\/\/)/).map(url => url.trim()).filter(url => url);
+  };
+
   // 产品卡片组件
   const ProductCard = ({ product, index, keyPrefix = '' }) => {
-    const imageUrl = getProductImageUrl(product);
+    const imageUrls = getProductImageUrls(product);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const hasMultipleImages = imageUrls.length > 1;
+
+    // 自动轮播
+    React.useEffect(() => {
+      if (!hasMultipleImages) return;
+
+      const timer = setInterval(() => {
+        setCurrentImageIndex(prev => (prev + 1) % imageUrls.length);
+      }, 3000); // 每3秒切换一次
+
+      return () => clearInterval(timer);
+    }, [hasMultipleImages, imageUrls.length]);
+
+    // 手动切换图片
+    const handleImageNav = (e, direction) => {
+      e.stopPropagation();
+      if (direction === 'next') {
+        setCurrentImageIndex(prev => (prev + 1) % imageUrls.length);
+      } else {
+        setCurrentImageIndex(prev => (prev - 1 + imageUrls.length) % imageUrls.length);
+      }
+    };
+
+    const currentImageUrl = imageUrls[currentImageIndex] || null;
+
     return (
       <div
         key={keyPrefix ? `${keyPrefix}-${index}` : index}
@@ -376,16 +434,63 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
       >
         {/* Image Container */}
         <div className="aspect-[4/5] relative overflow-hidden lux-product-image">
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={product.produit || '商品图片'}
-              loading="lazy"
-              className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110"
-              onError={(e) => {
-                e.target.style.display = 'none';
-              }}
-            />
+          {currentImageUrl ? (
+            <>
+              <img
+                src={currentImageUrl}
+                alt={product.produit || '商品图片'}
+                loading="lazy"
+                className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
+              
+              {/* 多图片指示器 */}
+              {hasMultipleImages && (
+                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1.5 z-10">
+                  {imageUrls.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentImageIndex(idx);
+                      }}
+                      className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                        idx === currentImageIndex
+                          ? 'bg-white w-4'
+                          : 'bg-white/50 hover:bg-white/80'
+                      }`}
+                      aria-label={`查看图片 ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
+              
+              {/* 左右切换按钮（hover显示） */}
+              {hasMultipleImages && (
+                <>
+                  <button
+                    onClick={(e) => handleImageNav(e, 'prev')}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10"
+                    aria-label="上一张图片"
+                  >
+                    <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={(e) => handleImageNav(e, 'next')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10"
+                    aria-label="下一张图片"
+                  >
+                    <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </>
+              )}
+            </>
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
               <Package size={56} className="text-gray-300" strokeWidth={0.8} />

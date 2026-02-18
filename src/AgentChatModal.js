@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { ImagePlus, X } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -116,12 +117,15 @@ export default function AgentChatModal({ open, onClose }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const messagesRef = useRef(messages);
   
   // 用于自动滚动到底部
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
   
   // 滚动到底部的函数
   const scrollToBottom = () => {
@@ -164,6 +168,48 @@ export default function AgentChatModal({ open, onClose }) {
     }
   };
 
+  // 处理图片选择
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 验证是否为图片文件
+    if (!file.type.startsWith('image/')) {
+      setError('请选择图片文件');
+      return;
+    }
+
+    // 验证文件大小（限制10MB）
+    if (file.size > 10 * 1024 * 1024) {
+      setError('图片文件大小不能超过10MB');
+      return;
+    }
+
+    setSelectedImage(file);
+    
+    // 创建图片预览
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+    setError('');
+  };
+
+  // 移除选中的图片
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // 打开文件选择器
+  const handleImageButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
   const requestAssistant = async ({ query, baseMessages }) => {
     const history = toHistoryPayload(baseMessages);
     const resp = await fetch(`${API_URL}/api/agent`, {
@@ -178,10 +224,39 @@ export default function AgentChatModal({ open, onClose }) {
 
   const sendText = async (text) => {
     const query = (text || '').trim();
-    if (!query || loading) return;
+    
+    // 检查是否有图片或文字内容
+    if (!query && !selectedImage) return;
+    if (loading) return;
 
     setError('');
     const base = messagesRef.current || [];
+    
+    // 如果有图片，创建包含图片的消息
+    if (selectedImage) {
+      const nextMessages = [...base, { 
+        role: 'user', 
+        text: query || '发送了一张图片',
+        image: imagePreview 
+      }];
+      setMessages(nextMessages);
+      setInput('');
+      handleRemoveImage();
+      setLoading(true);
+
+      // 模拟处理延迟
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // 回复图片功能正在开发中
+      setMessages((prev) => [...prev, { 
+        role: 'assistant', 
+        text: '感谢您上传图片！图片搜索功能正在开发中，敬请期待。目前我可以帮您查询商品名称、参考号等文字信息。' 
+      }]);
+      setLoading(false);
+      return;
+    }
+
+    // 正常的文字消息处理
     const nextMessages = [...base, { role: 'user', text: query }];
     setMessages(nextMessages);
     setInput('');
@@ -204,6 +279,7 @@ export default function AgentChatModal({ open, onClose }) {
     setCopiedIndex(null);
     setMessages([{ role: 'assistant', text: DEFAULT_GREETING }]);
     setInput('');
+    handleRemoveImage();
     window.setTimeout(() => inputRef.current?.focus(), 0);
   };
 
@@ -289,6 +365,14 @@ export default function AgentChatModal({ open, onClose }) {
                     : ' bg-black text-white border-black')
                 }
               >
+                {/* 如果消息包含图片，显示图片预览 */}
+                {msg.image && (
+                  <img 
+                    src={msg.image} 
+                    alt="上传的图片" 
+                    className="max-w-[200px] max-h-[200px] rounded-lg mb-2 object-cover"
+                  />
+                )}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">{formatMessage(msg.text)}</div>
                   {msg.role === 'assistant' && msg.text ? (
@@ -345,27 +429,66 @@ export default function AgentChatModal({ open, onClose }) {
           ))}
         </div>
 
-        <div className="border-t border-ink-200 px-5 py-4 flex gap-2 bg-white rounded-b-3xl">
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                sendMessage();
-              }
-            }}
-            placeholder="输入商品名称或参考号..."
-            className="flex-1 h-11 rounded-full border border-ink-300 px-4 py-2 focus:ring-2 focus:ring-black focus:border-transparent text-sm"
-          />
-          <button
-            onClick={sendMessage}
-            disabled={loading}
-            className="lux-button-primary h-11 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {loading ? '发送中...' : '发送'}
-          </button>
+        <div className="border-t border-ink-200 px-5 py-4 bg-white rounded-b-3xl">
+          {/* 图片预览区域 */}
+          {imagePreview && (
+            <div className="mb-3 relative inline-block">
+              <img 
+                src={imagePreview} 
+                alt="预览" 
+                className="max-w-[120px] max-h-[120px] rounded-lg border-2 border-ink-200 object-cover"
+              />
+              <button
+                onClick={handleRemoveImage}
+                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition"
+                title="移除图片"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+          
+          <div className="flex gap-2">
+            {/* 隐藏的文件输入 */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageSelect}
+              className="hidden"
+            />
+            
+            {/* 图片上传按钮 */}
+            <button
+              onClick={handleImageButtonClick}
+              disabled={loading}
+              className="w-11 h-11 rounded-full border border-ink-300 bg-white hover:bg-ink-50 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center transition"
+              title="上传图片"
+            >
+              <ImagePlus size={20} className="text-ink-600" />
+            </button>
+            
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+              placeholder="输入商品名称或参考号..."
+              className="flex-1 h-11 rounded-full border border-ink-300 px-4 py-2 focus:ring-2 focus:ring-black focus:border-transparent text-sm"
+            />
+            <button
+              onClick={sendMessage}
+              disabled={loading}
+              className="lux-button-primary h-11 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? '发送中...' : '发送'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
