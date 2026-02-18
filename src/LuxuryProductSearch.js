@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { Search, Package, X, Menu, SlidersHorizontal, ChevronRight } from 'lucide-react';
 // eslint-disable-next-line no-unused-vars
@@ -56,8 +55,9 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
   const [searchOpen, setSearchOpen] = useState(false);
 
   const categoryCacheRef = useRef(new WeakMap());
-  const imageIndexRef = useRef(new Map()); // 存储每个商品的当前图片索引
-  const autoRotateTimersRef = useRef(new Map()); // 存储自动轮播定时器
+  // 删除以下两行：
+  // const imageIndexRef = useRef(new Map());
+  // const autoRotateTimersRef = useRef(new Map());
 
   React.useEffect(() => {
     categoryCacheRef.current = new WeakMap();
