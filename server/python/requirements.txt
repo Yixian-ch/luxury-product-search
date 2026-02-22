@@ -21,3 +21,5 @@ python-dotenv>=1.0.0
 # 可選：異步支持
 httpx>=0.25.0
 aiofiles>=23.2.0
+
+ 

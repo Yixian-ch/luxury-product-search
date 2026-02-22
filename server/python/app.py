@@ -17,8 +17,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-import time
-import redis.asyncio as redis_async
 
 # 確保可以導入本地模塊
 sys.path.insert(0, str(Path(__file__).parent))
@@ -161,106 +159,6 @@ async def log_ip_middleware(request: Request, call_next):
     except Exception:
         pass
     return await call_next(request)
-
-
-# ============ Redis-backed rate limiter middleware ============
-# Uses per-IP fixed window counting (INCR + EXPIRE). Configurable with env vars.
-RATE_LIMIT = int(os.getenv('RATE_LIMIT', '100'))
-RATE_WINDOW = int(os.getenv('RATE_WINDOW', '60'))
-BLOCK_DURATION = int(os.getenv('RATE_BLOCK_SECONDS', str(60 * 10)))
-
-_redis_client = None
-_redis_available = False
-
-def _init_redis():
-    global _redis_client, _redis_available
-    try:
-        REDIS_URL = os.getenv('REDIS_URL')
-        if REDIS_URL:
-            _redis_client = redis_async.from_url(REDIS_URL, decode_responses=True)
-        else:
-            host = os.getenv('REDIS_HOST', '127.0.0.1')
-            port = int(os.getenv('REDIS_PORT', '6379'))
-            pwd = os.getenv('REDIS_PASSWORD') or None
-            _redis_client = redis_async.Redis(host=host, port=port, password=pwd, decode_responses=True)
-        # quick ping to check connectivity
-        # schedule not awaited here; rely on middleware to handle connection errors
-        _redis_available = True
-        logger.info('Redis client initialized for rate limiting')
-    except Exception as e:
-        _redis_client = None
-        _redis_available = False
-        logger.warning(f'Redis init failed, rate limiting disabled: {e}')
-
-
-_init_redis()
-
-
-@app.middleware('http')
-async def redis_rate_limit_middleware(request: Request, call_next):
-    """Rate limit per-IP using Redis INCR + EXPIRE with a fixed-time window.
-
-    Env vars:
-      - RATE_LIMIT (default 100)
-      - RATE_WINDOW (seconds, default 60)
-      - RATE_BLOCK_SECONDS (default 600)
-      - REDIS_URL or REDIS_HOST/REDIS_PORT/REDIS_PASSWORD
-    """
-    ip = _get_remote_ip(request)
-
-    # if redis not configured, skip
-    if not _redis_available or _redis_client is None:
-        return await call_next(request)
-
-    try:
-        now = int(time.time())
-        window = now // RATE_WINDOW
-        count_key = f"rate:count:{ip}:{window}"
-        block_key = f"rate:block:{ip}"
-
-        # check blocked
-        blocked = await _redis_client.get(block_key)
-        if blocked:
-            ttl = await _redis_client.ttl(block_key)
-            retry_after = max(int(ttl), 0)
-            logger.info(f"[RateLimit] blocked {ip} retry_after={retry_after}s")
-            return JSONResponse(status_code=429, content={
-                'detail': 'Too many requests',
-                'blocked': True,
-                'retry_after': retry_after,
-            }, headers={'Retry-After': str(retry_after)})
-
-        # increment window counter
-        count = await _redis_client.incr(count_key)
-        if count == 1:
-            # first request in window -> set expiry
-            await _redis_client.expire(count_key, RATE_WINDOW)
-
-        remaining = max(RATE_LIMIT - int(count), 0)
-
-        if int(count) > RATE_LIMIT:
-            # set block key
-            await _redis_client.set(block_key, '1', ex=BLOCK_DURATION)
-            logger.info(f"[RateLimit] rate exceeded, blocking {ip} for {BLOCK_DURATION}s")
-            return JSONResponse(status_code=429, content={
-                'detail': 'Too many requests',
-                'blocked': True,
-                'retry_after': BLOCK_DURATION,
-            }, headers={'Retry-After': str(BLOCK_DURATION)})
-
-        # proceed
-        response = await call_next(request)
-
-        # attach rate-limit headers
-        response.headers['X-RateLimit-Limit'] = str(RATE_LIMIT)
-        response.headers['X-RateLimit-Remaining'] = str(remaining)
-        response.headers['X-RateLimit-Window-Seconds'] = str(RATE_WINDOW)
-        return response
-
-    except Exception as e:
-        # On Redis errors, do not block traffic; log and continue
-        logger.warning(f"Redis rate limiter error, skipping limiter: {e}")
-        return await call_next(request)
 
 # 全局產品緩存（啟動時一次載入，常駐內存）
 _products_cache: List[Dict[str, Any]] = []
