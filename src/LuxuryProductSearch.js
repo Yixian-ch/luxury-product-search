@@ -1,7 +1,5 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { Search, Package, X, Menu, SlidersHorizontal, ChevronRight } from 'lucide-react';
-// eslint-disable-next-line no-unused-vars
-import { Eye } from 'lucide-react';
 
 // API 地址：从环境变量读取，本地开发默认 http://localhost:5000
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -11,15 +9,15 @@ const CATEGORY_LABELS = {
   BAGS: '包袋',
   RTW: '成衣',
   SHOES: '鞋履',
-  JEWELRY: '珠宝',
-  ACCESSORIES: '配饰',
-  COLLECTION_MIUMIU: 'Miu Miu 系列',
+  JEWELRY: '時尚珠宝',
+  Joaillerie:"高珠",
+  ACCESSORIES: '配饰'
 };
 
 // 品牌更新日期配置
 const BRAND_UPDATE_DATES = {
   'Dior': '2026年2月2日',
-  'LV': '2026年2月2日', 
+  'Louis Vuitton': '2026年2月2日', 
   'Loewe': '2026年2月2日',
   'Ysl': '2026年2月10日',
   'Miumiu': '2026年2月2日',
@@ -80,11 +78,11 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
 
   const inferCategory = useCallback((product) => {
     const hay = [
-      product?.produit,
       product?.designation,
+      product?.descriptif,
       product?.Rayon,
       product?.Famille,
-      product?.sousfamille,
+      product?.SousFamille,
     ]
       .filter(Boolean)
       .map((v) => String(v).toLowerCase())
@@ -98,6 +96,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
       { patterns: ['sac', 'bag', 'handbag', 'slingbag', 'backpack', 'crossbody', 'pochette', 'clutch', 'wallet', 'tote', 'pouch', '包', '手袋', '钱包', '背包', '斜挎', '单肩', '双肩'], category: 'BAGS' },
       { patterns: ['montre', 'watch', '腕表', '手表'], category: 'WATCHES' },
       { patterns: ['bague', 'bracelet', 'collier', 'boucle', 'earring', 'necklace', 'ring', 'jewel', '珠宝', '首饰', '项链', '手链', '戒', '耳环'], category: 'JEWELRY' },
+      {patterns:["Joaillerie"],category:"Joaillerie"},
       { patterns: ['robe', 'dress', 'jupe', 'skirt', 'chemise', 'shirt', 't-shirt', 'veste', 'jacket', 'manteau', 'coat', 'pantalon', 'pants', 'jeans', 'pull', 'sweater', 'cardigan', '连衣裙', '裙', '半裙', '上衣', '衬衫', '外套', '大衣', '裤'], category: 'RTW' },
       { patterns: ['shoe', 'sneaker', 'boot', 'sandale', 'loafer', 'mocassin', 'escarpin', 'mule', '鞋', '靴', '凉鞋', '高跟'], category: 'SHOES' },
       { patterns: ['parfum', 'fragrance', 'eau de', 'beauty', 'makeup', 'lipstick', 'soin', 'crème', '香水', '口红', '护肤', '彩妆'], category: 'BEAUTY' },
@@ -117,16 +116,14 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
     
     const familleLower = famille.toLowerCase().trim();
     
-    // Collection Miu Miu 系列
-    if (familleLower === 'collection_miumiu') {
-      return 'COLLECTION_MIUMIU';
-    }
-    
     // 包袋类
     if (familleLower === 'sacs') {
       return 'BAGS';
     }
-    
+
+    if (familleLower==="joaillerie") {
+      return "Joaillerie";
+    }
     // 成衣类
     if (familleLower === 'vêtements') {
       return 'RTW';
@@ -206,7 +203,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
     );
   };
 
-  const selectedSizes = selectedProduct ? parseSizes(selectedProduct.taille) : [];
+  const selectedSizes = selectedProduct ? parseSizes(selectedProduct.Taille) : [];
 
   // load from localStorage on mount
   React.useEffect(() => {
@@ -262,7 +259,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
   const availableBrands = useMemo(() => {
     const set = new Set();
     products.forEach((item) => {
-      const brand = typeof item.marque === 'string' ? item.marque.trim() : '';
+      const brand = typeof item.Marque === 'string' ? item.Marque.trim() : '';
       if (brand) set.add(brand);
     });
     return ['ALL', ...Array.from(set).sort((a, b) => a.localeCompare(b))];
@@ -274,7 +271,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
       const c = getCategory(p);
       counts.set(c, (counts.get(c) || 0) + 1);
     });
-    const order = ['COLLECTION_MIUMIU', 'BAGS', 'RTW', 'SHOES', 'JEWELRY', 'ACCESSORIES'];
+    const order = ['BAGS', 'RTW', 'SHOES', 'JEWELRY', 'ACCESSORIES',"Joaillerie"];
     const list = order.filter((c) => (counts.get(c) || 0) > 0);
     return ['ALL', ...list];
   }, [products, getCategory]);
@@ -282,7 +279,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
   const filteredProducts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return products.filter((product) => {
-      const brand = typeof product.marque === 'string' ? product.marque.trim() : '';
+      const brand = typeof product.Marque === 'string' ? product.Marque.trim() : '';
       if (selectedBrand !== 'ALL' && brand !== selectedBrand) {
         return false;
       }
@@ -301,10 +298,10 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
       if (!term) return true;
 
       const fields = [
-        product.produit,
-        product.reference,
         product.designation,
-        product.marque,
+        product.produit,
+        product.descriptif,
+        product.Marque,
       ];
 
       return fields.some((field) => {
@@ -326,19 +323,19 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
       return isNaN(num) ? Infinity : num; // "prix sur demande" becomes Infinity, sorts to end
     };
     
-    if (sortBy === 'price_asc') return arr.sort((a, b) => getNumericPrice(a.prix_vente) - getNumericPrice(b.prix_vente));
-    if (sortBy === 'price_desc') return arr.sort((a, b) => getNumericPrice(b.prix_vente) - getNumericPrice(a.prix_vente));
-    if (sortBy === 'brand_asc') return arr.sort((a, b) => String(a.marque || '').localeCompare(String(b.marque || '')));
-    if (sortBy === 'brand_desc') return arr.sort((a, b) => String(b.marque || '').localeCompare(String(a.marque || '')));
+    if (sortBy === 'price_asc') return arr.sort((a, b) => getNumericPrice(a.Prix_Vente) - getNumericPrice(b.Prix_Vente));
+    if (sortBy === 'price_desc') return arr.sort((a, b) => getNumericPrice(b.Prix_Vente) - getNumericPrice(a.Prix_Vente));
+    if (sortBy === 'brand_asc') return arr.sort((a, b) => String(a.Marque || '').localeCompare(String(b.Marque || '')));
+    if (sortBy === 'brand_desc') return arr.sort((a, b) => String(b.Marque || '').localeCompare(String(a.Marque || '')));
     return arr;
   }, [filteredProducts, sortBy]);
 
-  // group by brand (marque)
+  // group by brand (Marque)
   const groupedByBrand = useMemo(() => {
     const groups = new Map();
     const source = [...sortedProducts];
     source.forEach((p) => {
-      const brand = (p.marque && String(p.marque).trim()) || '未分类品牌';
+      const brand = (p.Marque && String(p.Marque).trim()) || '未分类品牌';
       if (!groups.has(brand)) groups.set(brand, []);
       groups.get(brand).push(p);
     });
@@ -374,7 +371,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
   const getProductImageUrl = (item) => {
     if (!item) return '';
     const candidates = [
-      item.img_url,        // 图片链接
+      item.Perso_Lien_Photo,        // 图片链接
       item.image_url,
       item.image,
       item.photo,
@@ -386,7 +383,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
   const getProductImageUrls = (item) => {
     if (!item) return [];
     const candidates = [
-      item.img_url,
+      item.Perso_Lien_Photo,
       item.image_url,
       item.image,
       item.photo,
@@ -438,7 +435,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
             <>
               <img
                 src={currentImageUrl}
-                alt={product.produit || '商品图片'}
+                alt={product.designation || '商品图片'}
                 loading="lazy"
                 className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110"
                 onError={(e) => {
@@ -505,16 +502,16 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
         <div className="lux-product-content">
           <div className="mb-3">
             <p className="text-xs tracking-[0.2em] uppercase font-light mb-3" style={{color: 'var(--color-muted)'}}>
-              {product.marque || 'Brand'}
+              {product.Marque || 'Brand'}
             </p>
             <h3 className="font-luxury text-lg leading-tight mb-4 group-hover:text-yellow-700 transition-colors duration-500" style={{color: 'var(--color-charcoal)', lineHeight: '1.4'}}>
-              {product.produit || '未命名商品'}
+              {product.designation || '未命名商品'}
             </h3>
           </div>
           
           <div className="flex items-center justify-between">
             <span className="font-luxury text-xl tracking-wider" style={{color: 'var(--color-charcoal)', fontWeight: '300'}}>
-              {formatPrice(product.prix_vente)}
+              {formatPrice(product.Prix_Vente)}
             </span>
             <div className="flex items-center gap-2 text-xs tracking-[0.15em] uppercase font-light group-hover:translate-x-1 transition-transform duration-300" style={{color: 'var(--color-muted)'}}>
               <span>Discover</span>
@@ -638,9 +635,6 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
             <span className="text-ink-400">/</span>
             <span>{selectedBrand === 'ALL' ? '全部品牌' : selectedBrand}</span>
           </div>
-          <div className="text-xs tracking-[0.15em] uppercase text-ink-600">
-            <span>总商品数 {filteredProducts.length}</span>
-          </div>
 
           {selectedBrand !== 'ALL' && (
             <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -718,7 +712,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
                   {getProductImageUrl(selectedProduct) ? (
                     <img
                       src={getProductImageUrl(selectedProduct)}
-                      alt={selectedProduct.produit}
+                      alt={selectedProduct.designation}
                       loading="lazy"
                       className="w-full h-full object-cover"
                       onError={(e) => {
@@ -734,36 +728,36 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
 
                 <div className="flex flex-col">
                   <p className="text-xs tracking-[0.2em] uppercase text-ink-500 mb-2">
-                    {selectedProduct.marque || 'Brand'}
+                    {selectedProduct.Marque || 'Brand'}
                   </p>
-                  <h3 className="font-luxury text-2xl sm:text-3xl text-ink-900 mb-4 leading-tight">{selectedProduct.produit}</h3>
+                  <h3 className="font-luxury text-2xl sm:text-3xl text-ink-900 mb-4 leading-tight">{selectedProduct.designation}</h3>
                   <p className="font-luxury text-2xl text-ink-900 mb-8">
-                    {formatPrice(selectedProduct.prix_vente)}
+                    {formatPrice(selectedProduct.Prix_Vente)}
                   </p>
 
                   <div className="space-y-3 text-sm text-ink-800">
-                    {selectedProduct.marque && (
+                    {selectedProduct.Marque && (
                       <div className="flex border-b border-ink-200 pb-3">
                         <span className="text-xs tracking-[0.2em] uppercase text-ink-500 w-32">品牌</span>
-                        <span>{selectedProduct.marque}</span>
+                        <span>{selectedProduct.Marque}</span>
                       </div>
                     )}
-                    {selectedProduct.reference && (
+                    {selectedProduct.produit && (
                       <div className="flex border-b border-ink-200 pb-3">
                         <span className="text-xs tracking-[0.2em] uppercase text-ink-500 w-32">型号</span>
-                        <span>{selectedProduct.reference}</span>
+                        <span>{selectedProduct.produit}</span>
                       </div>
                     )}
-                    {selectedProduct.designation && (
+                    {selectedProduct.descriptif && (
                       <div className="flex border-b border-ink-200 pb-3">
                         <span className="text-xs tracking-[0.2em] uppercase text-ink-500 w-32">描述</span>
-                        <span>{selectedProduct.designation}</span>
+                        <span>{selectedProduct.descriptif}</span>
                       </div>
                     )}
-                    {selectedProduct.couleur && (
+                    {selectedProduct.Couleur && (
                       <div className="flex border-b border-ink-200 pb-3">
                         <span className="text-xs tracking-[0.2em] uppercase text-ink-500 w-32">颜色</span>
-                        <span>{selectedProduct.couleur}</span>
+                        <span>{selectedProduct.Couleur}</span>
                       </div>
                     )}
                     {selectedSizes.length > 0 && (
@@ -781,28 +775,28 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
                         </div>
                       </div>
                     )}
-                    {selectedSizes.length === 0 && selectedProduct.taille && (
+                    {selectedSizes.length === 0 && selectedProduct.Taille && (
                       <div className="flex border-b border-ink-200 pb-3">
                         <span className="text-xs tracking-[0.2em] uppercase text-ink-500 w-32">尺寸</span>
-                        <span>{selectedProduct.taille}</span>
+                        <span>{selectedProduct.Taille}</span>
                       </div>
                     )}
-                    {selectedProduct.dimension && (
+                    {selectedProduct.Dimension && (
                       <div className="flex border-b border-ink-200 pb-3">
                         <span className="text-xs tracking-[0.2em] uppercase text-ink-500 w-32">规格</span>
-                        <span>{selectedProduct.dimension}</span>
+                        <span>{selectedProduct.Dimension}</span>
                       </div>
                     )}
-                    {selectedProduct.matiere && (
+                    {selectedProduct.Matiere && (
                       <div className="flex border-b border-ink-200 pb-3">
                         <span className="text-xs tracking-[0.2em] uppercase text-ink-500 w-32">材质</span>
-                        <span>{selectedProduct.matiere}</span>
+                        <span>{selectedProduct.Matiere}</span>
                       </div>
                     )}
-                    {selectedProduct.motif && (
+                    {selectedProduct.Motif && (
                       <div className="flex border-b border-ink-200 pb-3">
                         <span className="text-xs tracking-[0.2em] uppercase text-ink-500 w-32">图案</span>
-                        <span>{selectedProduct.motif}</span>
+                        <span>{selectedProduct.Motif}</span>
                       </div>
                     )}
                     {selectedProduct.Rayon && (
@@ -817,11 +811,11 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
                         <span>{selectedProduct.Famille}</span>
                       </div>
                     )}
-                    {selectedProduct.lien_externe && (
+                    {selectedProduct.Lien_Externe && (
                       <div className="flex border-b border-ink-200 pb-3">
                         <span className="text-xs tracking-[0.2em] uppercase text-ink-500 w-32">链接</span>
                         <a
-                          href={selectedProduct.lien_externe}
+                          href={selectedProduct.Lien_Externe}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-ink-900 hover:underline"
@@ -908,9 +902,6 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setFilterOpen(false)} />
           <div className="absolute right-0 top-0 h-full w-[min(480px,90vw)] bg-white shadow-2xl">
             <div className="p-6 border-b border-ink-100 flex items-center justify-between">
-              <div>
-                <p className="font-luxury text-xl tracking-[0.1em] text-ink-900">筛选器</p>
-              </div>
               <button 
                 type="button" 
                 className="w-10 h-10 rounded-full flex items-center justify-center text-ink-500 hover:text-ink-900 hover:bg-ink-50 transition-all"

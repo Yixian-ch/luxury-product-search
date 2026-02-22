@@ -244,9 +244,9 @@ def health_check():
 
 # 前端列表只需要的精簡字段
 LIST_FIELDS = {
-    'reference', 'produit', 'designation', 'marque', 'couleur',
-    'taille', 'prix_vente', 'prix_achat', 'Rayon', 'Famille',
-    'img_url', 'image_url', 'lien_externe',
+    'produit', 'designation', 'descriptif', 'Marque', 'Couleur',
+    'Taille', 'Prix_Vente', 'prix_achat', 'Rayon', 'Famille', 'SousFamille',
+    'Perso_Lien_Photo', 'image_url', 'Lien_Externe', 'Motif', 'Matiere', 'Dimension',
 }
 
 def _slim_product(p: Dict[str, Any]) -> Dict[str, Any]:
@@ -274,7 +274,7 @@ def get_products(
     # 品牌篩選
     if brand:
         brand_lower = brand.lower().strip()
-        products = [p for p in products if p.get('marque', '').lower().strip() == brand_lower]
+        products = [p for p in products if p.get('Marque', '').lower().strip() == brand_lower]
     
     # 精簡字段
     if slim:
@@ -305,15 +305,15 @@ def get_products(
     )
 
 
-@app.get("/api/products/{reference}")
-def get_product_by_reference(reference: str):
-    """根據參考號獲取商品"""
+@app.get("/api/products/{produit}")
+def get_product_by_produit(produit: str):
+    """根據 produit 獲取商品"""
     products = read_products()
-    ref_lower = reference.lower().strip()
+    prod_lower = produit.lower().strip()
     
     for product in products:
-        product_ref = str(product.get('reference', '')).lower().strip()
-        if product_ref == ref_lower:
+        product_prod = str(product.get('produit', '')).lower().strip()
+        if product_prod == prod_lower:
             return product
     
     raise HTTPException(status_code=404, detail="商品未找到")
@@ -452,11 +452,11 @@ async def agent_endpoint(request: AgentRequest):
     
     # 提取商品信息
     product_name = (
-        matched.get('produit') or matched.get('designation') or matched.get('reference') or '該商品'
+        matched.get('designation') or matched.get('descriptif') or matched.get('produit') or '該商品'
     ) if matched else ''
-    price = matched.get('prix_vente') or matched.get('prix_achat') or '未知' if matched else '未知'
-    reference = matched.get('reference', '') if matched else ''
-    product_link = matched.get('lien_externe', '') if matched else ''
+    price = matched.get('Prix_Vente') or matched.get('prix_achat') or '未知' if matched else '未知'
+    reference = matched.get('produit', '') if matched else ''
+    product_link = matched.get('Lien_Externe', '') if matched else ''
     
     # 處理 query_price_online 意圖
     if intent == 'query_price_online':

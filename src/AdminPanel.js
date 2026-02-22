@@ -43,37 +43,52 @@ const AdminPanel = ({ onLogout }) => {
 
       // Map common incoming headers
       const headerMap = {
-        produit: 'produit',
         designation: 'designation',
-        motif: 'motif',
-        marque: 'marque',
-        couleur: 'couleur',
-        taille: 'taille',
-        reference: 'reference',
-        referencee: 'reference',
-        'référence': 'reference',
-        'Référence': 'reference',  // Direct mapping for capitalized version
-        'REFERENCE': 'reference',
-        dimension: 'dimension',
-        prix_vente: 'prix_vente',
-        prixvente: 'prix_vente',
-        tarif: 'prix_vente',
+        descriptif: 'descriptif',
+        Motif: 'Motif',
+        motif: 'Motif',
+        Marque: 'Marque',
+        marque: 'Marque',
+        Couleur: 'Couleur',
+        couleur: 'Couleur',
+        Taille: 'Taille',
+        taille: 'Taille',
+        produit: 'produit',
+        reference: 'produit',
+        referencee: 'produit',
+        'référence': 'produit',
+        'Référence': 'produit',
+        'REFERENCE': 'produit',
+        Dimension: 'Dimension',
+        dimension: 'Dimension',
+        Prix_Vente: 'Prix_Vente',
+        prix_vente: 'Prix_Vente',
+        prixvente: 'Prix_Vente',
+        tarif: 'Prix_Vente',
         prix_achat: 'prix_achat',
+        Rayon: 'Rayon',
         rayon: 'Rayon',
+        Famille: 'Famille',
         famille: 'Famille',
-        sousfamille: 'sousfamille',
-        matiere: 'matiere',
-        lien_externe: 'lien_externe',
-        lienexterne: 'lien_externe',
-        lien: 'lien_externe',
-        link: 'lien_externe',
-        img_url: 'img_url',
-        image_url: 'img_url',
-        perso_lien_photo: 'img_url',
-        pays_production: 'production_pays',
-        paysdeproduction: 'production_pays',
-        pays_de_production: 'production_pays',
-        poids: 'poids'
+        SousFamille: 'SousFamille',
+        sousfamille: 'SousFamille',
+        Matiere: 'Matiere',
+        matiere: 'Matiere',
+        Lien_Externe: 'Lien_Externe',
+        lien_externe: 'Lien_Externe',
+        lienexterne: 'Lien_Externe',
+        lien: 'Lien_Externe',
+        link: 'Lien_Externe',
+        Perso_Lien_Photo: 'Perso_Lien_Photo',
+        img_url: 'Perso_Lien_Photo',
+        image_url: 'Perso_Lien_Photo',
+        perso_lien_photo: 'Perso_Lien_Photo',
+        Pays_Production: 'Pays_Production',
+        pays_production: 'Pays_Production',
+        paysdeproduction: 'Pays_Production',
+        pays_de_production: 'Pays_Production',
+        Poids: 'Poids',
+        poids: 'Poids'
       };
 
       const normalizeRow = (row) => {
@@ -87,9 +102,9 @@ const AdminPanel = ({ onLogout }) => {
             const nk = normalizeHeader(k);
             mapped = headerMap[nk];
             
-            // Special case: if normalized key contains "reference" (any variant), map to "reference"
+            // Special case: if normalized key contains "reference" (any variant), map to "produit"
             if (!mapped && nk.includes('reference')) {
-              mapped = 'reference';
+              mapped = 'produit';
             }
             
             // Fallback to normalized key if still not mapped
@@ -102,15 +117,15 @@ const AdminPanel = ({ onLogout }) => {
         });
 
         // Parse price
-        if (out.prix_vente !== undefined && out.prix_vente !== null && out.prix_vente !== '') {
-          const str = String(out.prix_vente).trim();
+        if (out.Prix_Vente !== undefined && out.Prix_Vente !== null && out.Prix_Vente !== '') {
+          const str = String(out.Prix_Vente).trim();
           const cleaned = str.replace(/[^0-9,.-]/g, '').replace(/,/g, '.');
           const num = parseFloat(cleaned);
-          if (!Number.isNaN(num)) out.prix_vente = num;
+          if (!Number.isNaN(num)) out.Prix_Vente = num;
         }
 
-        if (out.reference !== undefined && out.reference !== null) {
-          out.reference = String(out.reference).trim();
+        if (out.produit !== undefined && out.produit !== null) {
+          out.produit = String(out.produit).trim();
         }
 
         return out;
@@ -118,18 +133,18 @@ const AdminPanel = ({ onLogout }) => {
 
       const jsonData = raw.map(normalizeRow);
 
-      // Pre-check: every item must have non-empty reference
+      // Pre-check: every item must have non-empty produit
       const missing = [];
       jsonData.forEach((item, idx) => {
-        const ref = item && item.reference != null ? String(item.reference).trim() : '';
+        const ref = item && item.produit != null ? String(item.produit).trim() : '';
         if (!ref) {
           missing.push(idx + 1); // human-friendly row index
         } else {
-          item.reference = ref;
+          item.produit = ref;
         }
       });
       if (missing.length > 0) {
-        setMessage(`✗ 上传失败：以下行缺少 reference 字段：${missing.slice(0, 10).join(', ')}${missing.length > 10 ? ' ...' : ''}`);
+        setMessage(`✗ 上传失败：以下行缺少 produit 字段：${missing.slice(0, 10).join(', ')}${missing.length > 10 ? ' ...' : ''}`);
         setMessageType('error');
         setIsUploading(false);
         event.target.value = '';
@@ -233,16 +248,16 @@ const AdminPanel = ({ onLogout }) => {
     const term = search.trim().toLowerCase();
     if (!term) return products;
     return products.filter(p =>
-      String(p.reference || '').toLowerCase().includes(term) ||
       String(p.produit || '').toLowerCase().includes(term) ||
-      String(p.marque || '').toLowerCase().includes(term)
+      String(p.designation || '').toLowerCase().includes(term) ||
+      String(p.Marque || '').toLowerCase().includes(term)
     );
   }, [products, search]);
 
   const brandOptions = React.useMemo(() => {
     const set = new Set();
     products.forEach((p) => {
-      const brand = typeof p.marque === 'string' ? p.marque.trim() : '';
+      const brand = typeof p.Marque === 'string' ? p.Marque.trim() : '';
       if (brand) set.add(brand);
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
@@ -251,14 +266,14 @@ const AdminPanel = ({ onLogout }) => {
   const openEdit = (product) => {
     setEditing(product);
     const draft = { ...product };
-    delete draft.reference; // immutable
+    delete draft.produit; // immutable
     setEditDraft(draft);
   };
 
   const saveEdit = async () => {
     if (!editing) return;
     const adminKey = sessionStorage.getItem('admin_key') || '';
-    const res = await fetch(`${API_URL}/api/products/${encodeURIComponent(editing.reference)}`, {
+    const res = await fetch(`${API_URL}/api/products/${encodeURIComponent(editing.produit)}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -269,7 +284,7 @@ const AdminPanel = ({ onLogout }) => {
     if (res.ok) {
       // update local list
       const updated = products.map(p => {
-        if (String(p.reference) === String(editing.reference)) {
+        if (String(p.produit) === String(editing.produit)) {
           return { ...p, ...editDraft };
         }
         return p;
@@ -312,7 +327,7 @@ const AdminPanel = ({ onLogout }) => {
         const result = await res.json();
         setProducts(prev =>
           prev.filter(p => {
-            const brand = typeof p.marque === 'string' ? p.marque.trim() : '';
+            const brand = typeof p.Marque === 'string' ? p.Marque.trim() : '';
             return brand !== brandToDelete;
           })
         );
@@ -364,7 +379,7 @@ const AdminPanel = ({ onLogout }) => {
             <p className="text-gray-600">
               选择一个包含商品信息的 Excel 文件（.xlsx 或 .xls）。文件中应包含以下列：
               <span className="text-sm text-gray-500 block mt-2">
-                produit, designation, reference, marque, prix_vente, Link, 等
+                produit, designation, Marque, Prix_Vente, Lien_Externe, 等
               </span>
             </p>
 
@@ -437,7 +452,7 @@ const AdminPanel = ({ onLogout }) => {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="搜索 reference / 名称 / 品牌"
+              placeholder="搜索 produit / 名称 / 品牌"
               className="border rounded px-3 py-2"
             />
               <div className="flex items-center gap-2">
@@ -465,7 +480,7 @@ const AdminPanel = ({ onLogout }) => {
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left p-2">Reference</th>
+                  <th className="text-left p-2">Produit</th>
                   <th className="text-left p-2">名称</th>
                   <th className="text-left p-2">品牌</th>
                   <th className="text-left p-2">价格</th>
@@ -475,10 +490,10 @@ const AdminPanel = ({ onLogout }) => {
               <tbody>
                 {filtered.map((p, i) => (
                   <tr key={i} className="border-b hover:bg-gray-50">
-                    <td className="p-2">{p.reference}</td>
                     <td className="p-2">{p.produit}</td>
-                    <td className="p-2">{p.marque}</td>
-                    <td className="p-2">{p.prix_vente}</td>
+                    <td className="p-2">{p.designation}</td>
+                    <td className="p-2">{p.Marque}</td>
+                    <td className="p-2">{p.Prix_Vente}</td>
                     <td className="p-2">
                       <button
                         className="px-3 py-1 border rounded hover:bg-gray-100"
@@ -504,7 +519,7 @@ const AdminPanel = ({ onLogout }) => {
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg w-full max-w-2xl">
               <div className="border-b p-4 flex items-center justify-between">
-                <h3 className="text-lg font-bold">编辑商品 · {editing.reference}</h3>
+                <h3 className="text-lg font-bold">编辑商品 · {editing.produit}</h3>
                 <button className="px-3 py-1 border rounded" onClick={() => { setEditing(null); setEditDraft({}); }}>关闭</button>
               </div>
               <div className="p-4 space-y-3 max-h-[70vh] overflow-y-auto">
@@ -516,7 +531,7 @@ const AdminPanel = ({ onLogout }) => {
                       value={editDraft[k] ?? ''}
                       onChange={(e) => {
                         const v = e.target.value;
-                        setEditDraft((d) => ({ ...d, [k]: k === 'prix_vente' ? v : v }));
+                        setEditDraft((d) => ({ ...d, [k]: k === 'Prix_Vente' ? v : v }));
                       }}
                     />
                   </div>

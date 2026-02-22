@@ -59,9 +59,9 @@ def score_product_for_query(item: Dict[str, Any], query: str) -> int:
         return 0
     
     # 提取商品字段
-    ref = str(item.get('reference') or '').strip().lower()
-    name = str(item.get('produit') or item.get('designation') or '').strip().lower()
-    brand = str(item.get('marque') or '').strip().lower()
+    ref = str(item.get('produit') or '').strip().lower()
+    name = str(item.get('designation') or item.get('descriptif') or '').strip().lower()
+    brand = str(item.get('Marque') or '').strip().lower()
     
     score = 0
     
@@ -87,8 +87,8 @@ def score_product_for_query(item: Dict[str, Any], query: str) -> int:
     q_tokens = tokenize_text(q)
     if q_tokens:
         # 構建搜索文本
-        designation = str(item.get('designation') or '').lower()
-        hay = f"{ref} {name} {brand} {designation}"
+        descriptif = str(item.get('descriptif') or '').lower()
+        hay = f"{ref} {name} {brand} {descriptif}"
         
         hits = 0
         for t in q_tokens:
@@ -153,12 +153,12 @@ def to_candidate_brief(scored: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         item = entry.get('item') or {}
         result.append({
             'score': entry.get('score', 0),
-            'produit': item.get('produit') or item.get('designation') or '',
-            'marque': item.get('marque') or '',
-            'reference': item.get('reference') or '',
-            'prix_vente': item.get('prix_vente') or item.get('prix_achat') or '',
-            'lien_externe': item.get('lien_externe') or '',
-            'img_url': item.get('img_url') or item.get('image_url') or '',
+            'designation': item.get('designation') or item.get('descriptif') or '',
+            'Marque': item.get('Marque') or '',
+            'produit': item.get('produit') or '',
+            'Prix_Vente': item.get('Prix_Vente') or item.get('prix_achat') or '',
+            'Lien_Externe': item.get('Lien_Externe') or '',
+            'Perso_Lien_Photo': item.get('Perso_Lien_Photo') or item.get('image_url') or '',
         })
     return result
 
@@ -263,20 +263,20 @@ class ProductSearcher:
         """
         return search_products(self._products, query, limit, brief)
     
-    def get_by_reference(self, reference: str) -> Optional[Dict[str, Any]]:
+    def get_by_produit(self, produit: str) -> Optional[Dict[str, Any]]:
         """
-        根據參考號獲取商品
+        根據 produit 獲取商品
         
         Args:
-            reference: 商品參考號
+            produit: 商品編號
             
         Returns:
             商品數據，未找到則返回 None
         """
-        ref_lower = reference.lower().strip()
+        prod_lower = produit.lower().strip()
         for item in self._products:
-            item_ref = str(item.get('reference') or '').lower().strip()
-            if item_ref == ref_lower:
+            item_prod = str(item.get('produit') or '').lower().strip()
+            if item_prod == prod_lower:
                 return item
         return None
     
@@ -294,7 +294,7 @@ class ProductSearcher:
         brand_lower = brand.lower().strip()
         result = []
         for item in self._products:
-            item_brand = str(item.get('marque') or '').lower().strip()
+            item_brand = str(item.get('Marque') or '').lower().strip()
             if item_brand == brand_lower:
                 result.append(item)
                 if len(result) >= limit:
@@ -317,10 +317,10 @@ if __name__ == '__main__':
     # 測試評分
     print("\n=== 評分測試 ===")
     test_product = {
-        'reference': 'M0505OVRB_M928',
-        'produit': 'Lady Dior Medium',
-        'marque': 'Dior',
-        'designation': 'Lady Dior Medium Bag',
+        'produit': 'M0505OVRB_M928',
+        'designation': 'Lady Dior Medium',
+        'Marque': 'Dior',
+        'descriptif': 'Lady Dior Medium Bag',
     }
     test_queries = ['lady dior', 'M0505OVRB_M928', 'dior bag', '包包']
     for q in test_queries:
@@ -330,9 +330,9 @@ if __name__ == '__main__':
     # 測試搜索
     print("\n=== 搜索測試 ===")
     test_products = [
-        {'reference': 'REF001', 'produit': 'Lady Dior Medium', 'marque': 'Dior', 'prix_vente': 4900},
-        {'reference': 'REF002', 'produit': 'GG Marmont', 'marque': 'Gucci', 'prix_vente': 2100},
-        {'reference': 'REF003', 'produit': 'Triomphe Bag', 'marque': 'Celine', 'prix_vente': 2850},
+        {'produit': 'REF001', 'designation': 'Lady Dior Medium', 'Marque': 'Dior', 'Prix_Vente': 4900},
+        {'produit': 'REF002', 'designation': 'GG Marmont', 'Marque': 'Gucci', 'Prix_Vente': 2100},
+        {'produit': 'REF003', 'designation': 'Triomphe Bag', 'Marque': 'Celine', 'Prix_Vente': 2850},
     ]
     
     results = search_products(test_products, 'dior', limit=2)
