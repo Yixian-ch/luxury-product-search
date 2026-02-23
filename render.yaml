@@ -15,6 +15,10 @@ services:
         sync: false  # 手動在 Render 控制台設置
       - key: GOOGLE_SEARCH_API_KEY
         sync: false
+      - key: UPLOAD_API
+        sync: false
+      - key: Reverse_IMG_API
+        sync: false
       - key: PRODUCTS_JSON_PATH
         value: /opt/render/project/src/server/data/products.json
     healthCheckPath: /api/health
