@@ -9,7 +9,6 @@ import base64
 import logging
 import tempfile
 from typing import List, Dict
-
 import requests
 from serpapi import GoogleSearch
 
@@ -61,7 +60,7 @@ def reverse_image_search(image_bytes: bytes) -> List[Dict[str, str]]:
         tmp_path = tmp.name
 
     try:
-        image_url = upload_to_imgbb(tmp_path, _upload_api())
+        image_url = upload_to_imgbb(tmp_path, "110bbfe9edb29ed91a750c675d163560")
         logger.info(f"[ReverseImg] imgbb URL: {image_url}")
     finally:
         os.unlink(tmp_path)
@@ -69,7 +68,7 @@ def reverse_image_search(image_bytes: bytes) -> List[Dict[str, str]]:
     params = {
         "engine": "google_reverse_image",
         "image_url": image_url,
-        "api_key": _reverse_img_api(),
+        "api_key": "13bbdf11fa097a2ca7767af03b38fdbe21a8e5152f21783a51876f095a337129",
     }
 
     results = GoogleSearch(params).get_dict()
