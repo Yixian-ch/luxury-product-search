@@ -50,10 +50,6 @@ def reverse_image_search(image_bytes: bytes) -> List[Dict[str, str]]:
     Returns:
         [{"title": "...", "link": "...", "source": "..."}, ...]
     """
-    if not _upload_api():
-        raise ValueError("UPLOAD_API 環境變量未設置")
-    if not _reverse_img_api():
-        raise ValueError("Reverse_IMG_API 環境變量未設置")
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
         tmp.write(image_bytes)
