@@ -14,7 +14,7 @@ from typing import List, Dict, Any, Optional
 
 # 載入 .env 文件（必須在所有其他 import 之前）
 from dotenv import load_dotenv
-load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env', override=False)
+load_dotenv(dotenv_path="'/etc/secrets/.env'", override=False)
 from fastapi import FastAPI, HTTPException, Request, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
