@@ -12,7 +12,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
-from fastapi import FastAPI, HTTPException, Request, Query
+# 載入 .env 文件（必須在所有其他 import 之前）
+from dotenv import load_dotenv
+load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env', override=False)
+from fastapi import FastAPI, HTTPException, Request, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
@@ -44,7 +47,7 @@ from services import (
     DeepSeekClient,
     normalize_agent_messages,
     # Google 搜索
-    search_online,
+    reverse_image_search,
 )
 
 
@@ -266,6 +269,24 @@ def is_about_feel(query: str) -> bool:
 def health_check():
     """健康檢查端點"""
     return {"ok": True}
+
+
+@app.post("/api/reverse-image-search")
+async def reverse_image_search_endpoint(file: UploadFile = File(...)):
+    """
+    反向圖片搜索端點
+    接收用戶上傳的圖片，上傳到 imgbb，再用 SerpAPI 做 Google 反向圖片搜索。
+    返回格式: [{"title": "...", "link": "...", "source": "..."}, ...]
+    """
+    try:
+        image_bytes = await file.read()
+        results = reverse_image_search(image_bytes)
+        return JSONResponse(content={"results": results})
+    except ValueError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.error(f"[ReverseImg] 錯誤: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # 前端列表只需要的精簡字段
@@ -491,7 +512,7 @@ async def agent_endpoint(request: AgentRequest):
         # 執行在線搜索
         search_query = enhance_product_type_in_query(hint or enhanced_query)
         logger.info(f"{log_prefix} 準備在線搜索: \"{search_query}\"")
-        online_results = search_online(search_query)
+        online_results = ''
         
         # 生成回覆
         try:
@@ -545,7 +566,7 @@ async def agent_endpoint(request: AgentRequest):
     online_results = ''
     if not matched:
         logger.info(f"{log_prefix} 本地未匹配，嘗試在線搜索補充...")
-        online_results = search_online(enhanced_query)
+        online_results = ''
     
     # 生成回覆
     try:

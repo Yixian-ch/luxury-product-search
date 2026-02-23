@@ -234,6 +234,8 @@ export default function AgentChatModal({ open, onClose }) {
     
     // 如果有图片，创建包含图片的消息
     if (selectedImage) {
+      // capture file reference before clearing state
+      const imageFile = selectedImage;
       const nextMessages = [...base, { 
         role: 'user', 
         text: query || '发送了一张图片',
@@ -244,14 +246,27 @@ export default function AgentChatModal({ open, onClose }) {
       handleRemoveImage();
       setLoading(true);
 
-      // 模拟处理延迟
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // 回复图片功能正在开发中
-      setMessages((prev) => [...prev, { 
-        role: 'assistant', 
-        text: '感谢您上传图片！图片搜索功能正在开发中，敬请期待。目前我可以帮您查询商品名称、参考号等文字信息。' 
-      }]);
+      try {
+        const formData = new FormData();
+        formData.append('file', imageFile);
+        const res = await fetch(`${API_URL}/api/reverse-image-search`, {
+          method: 'POST',
+          body: formData,
+        });
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`HTTP ${res.status}: ${errText}`);
+        }
+        const data = await res.json();
+        const results = data.results || [];
+        const replyText = results.length > 0
+          ? results.map(r => `📌 ${r.title}\n   🔗 ${r.link}`).join('\n\n')
+          : '未找到相關圖片搜索結果。';
+        setMessages((prev) => [...prev, { role: 'assistant', text: replyText }]);
+      } catch (e) {
+        console.error('[ReverseImg]', e);
+        setMessages((prev) => [...prev, { role: 'assistant', text: `圖片搜索失敗：${e.message}` }]);
+      }
       setLoading(false);
       return;
     }

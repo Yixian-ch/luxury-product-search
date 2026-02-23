@@ -34,11 +34,7 @@ from .deepseek_client import (
 )
 
 from .google_search import (
-    GoogleSearchClient,
-    search_online,
-    format_search_results,
-    extract_prices_from_results,
-    get_default_client as get_default_google_client,
+    reverse_image_search,
 )
 
 __all__ = [
@@ -67,9 +63,5 @@ __all__ = [
     'extract_price_evidence',
     'get_default_deepseek_client',
     # google_search
-    'GoogleSearchClient',
-    'search_online',
-    'format_search_results',
-    'extract_prices_from_results',
-    'get_default_google_client',
+    'reverse_image_search',
 ]
