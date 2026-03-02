@@ -62,13 +62,13 @@ def reverse_image_search(image_bytes: bytes) -> List[Dict[str, str]]:
         os.unlink(tmp_path)
 
     params = {
-        "engine": "google_reverse_image",
-        "image_url": image_url,
+        "engine": "google_lens",
+        "url": image_url,
         "api_key": "13bbdf11fa097a2ca7767af03b38fdbe21a8e5152f21783a51876f095a337129",
     }
 
     results = GoogleSearch(params).get_dict()
-    image_results = results.get("image_results", [])
+    image_results = results.get("visual_matches", [])
 
     return [
         {"title": r.get("title", ""), "link": r.get("link", ""), "source": r.get("source", "")}

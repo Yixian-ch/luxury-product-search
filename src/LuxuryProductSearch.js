@@ -400,16 +400,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const hasMultipleImages = imageUrls.length > 1;
 
-    // 自动轮播
-    React.useEffect(() => {
-      if (!hasMultipleImages) return;
 
-      const timer = setInterval(() => {
-        setCurrentImageIndex(prev => (prev + 1) % imageUrls.length);
-      }, 3000); // 每3秒切换一次
-
-      return () => clearInterval(timer);
-    }, [hasMultipleImages, imageUrls.length]);
 
     // 手动切换图片
     const handleImageNav = (e, direction) => {
