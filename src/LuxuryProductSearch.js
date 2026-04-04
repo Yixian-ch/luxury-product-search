@@ -16,22 +16,23 @@ const CATEGORY_LABELS = {
 
 // 品牌更新日期配置
 const BRAND_UPDATE_DATES = {
-  'Dior': '2026年2月2日',
-  'Louis Vuitton': '2026年2月2日', 
-  'Loewe': '2026年2月2日',
-  'Ysl': '2026年2月10日',
-  'Miumiu': '2026年2月2日',
-  'Gucci': '2026年2月2日',
-  'Prada': '2026年2月2日',
-  'Margiela': '2026年2月2日',
-  'Burberry': '2026年2月2日',
-  'Acne Studios': '2026年2月2日',
-  'Max Mara': '2026年2月10日',
-  'Celine': '2026年2月2日',
-  'Fendi': '2026年2月2日',
-  'Moncler': '2026年2月10日',
-  'Fred': '2026年2月10日',
-  'Qeelin': '2026年2月10日',
+  'Dior': '2026年4月2日',
+  'Louis Vuitton': '2026年4月2日', 
+  'Loewe': '2026年4月2日',
+  'Ysl': '2026年4月2日',
+  'Miumiu': '2026年4月2日',
+  'Gucci': '2026年4月2日',
+  'Prada': '2026年4月2日',
+  'Margiela': '2026年4月2日',
+  'Burberry': '2026年4月2日',
+  'Acne Studios': '2026年4月2日',
+  'Max Mara': '2026年4月2日',
+  'Celine': '2026年4月2日',
+  'Fendi': '2026年4月2日',
+  'Moncler': '2026年4月2日',
+  'Fred': '2026年4月2日',
+  'Qeelin': '2026年4月2日',
+  'Balenciaga': '2026年4月2日',
 };
 
 const LuxuryProductSearch = ({ onReturnToWelcome }) => {
@@ -73,7 +74,7 @@ const LuxuryProductSearch = ({ onReturnToWelcome }) => {
 
   // 获取品牌更新日期
   const getBrandUpdateDate = useCallback((brand) => {
-    return BRAND_UPDATE_DATES[brand] || '2026年2月2日';
+    return BRAND_UPDATE_DATES[brand] || '2026年4月2日';
   }, []);
 
   const inferCategory = useCallback((product) => {
